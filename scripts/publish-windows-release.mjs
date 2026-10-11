@@ -47,11 +47,13 @@ if (args.includes('--check-tag')) {
   }
   let existing;
   try {
-    existing = JSON.parse(gh('api', `repos/${repository}/releases/tags/${tag}`));
+    existing = JSON.parse(
+      gh('release', 'view', tag, '--repo', repository, '--json', 'isDraft,assets'),
+    );
   } catch (error) {
-    if (!String(error.stderr).includes('HTTP 404')) throw error;
+    if (!/release not found|HTTP 404/i.test(String(error.stderr))) throw error;
   }
-  if (existing && !existing.draft) {
+  if (existing && !existing.isDraft) {
     throw new Error('This version is already published. Publish changes under a new version.');
   }
   const directory = join(root, 'artifacts/release', tag);
@@ -114,7 +116,10 @@ if (args.includes('--check-tag')) {
     repository,
     '--clobber',
   );
-  const uploaded = JSON.parse(gh('api', `repos/${repository}/releases/tags/${tag}`));
+  // The REST tag endpoint only finds published releases; CLI view also finds drafts.
+  const uploaded = JSON.parse(
+    gh('release', 'view', tag, '--repo', repository, '--json', 'isDraft,assets'),
+  );
   const expected = [
     ...verified.manifest.files.map((file) => file.name),
     manifestName,
