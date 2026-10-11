@@ -1,157 +1,113 @@
 # Публикация KnowYourLimits
 
-Поддерживаются macOS 13+ на Apple Silicon и Windows 10/11 x64. Проверки
-исходников и сборки выполняются в GitHub Actions (`.github/workflows/check.yml`).
-Подписанный macOS-релиз собирается на Mac с Developer ID и доступом к нотаризации.
-Windows-установщик NSIS собирается командой `bun run package:windows`; `.exe`
-и `manifest.json` с SHA-256 находятся в `artifacts/windows/<version>/`.
-Сборка Windows пока без подписи Authenticode.
+Репозиторий: [bshk-app/KnowYourLimits](https://github.com/bshk-app/KnowYourLimits).
+Windows 10/11 x64 публикуется через `.github/workflows/release.yml`.
+macOS 13+ на Apple Silicon проверяется в CI; подписанный DMG пока собирается
+отдельно на Mac с Developer ID, Zamok и доступом к нотаризации Apple.
 
-## Как устроена сборка
-
-Используется схема Tauri-версии Tish: Tauri создаёт `.app`, затем
-`zamokctl package` подписывает, нотарифицирует и прикрепляет билеты Apple
-к своей копии приложения и DMG. Проверяются `manifest.json`, версия,
-идентификатор приложения, минимальная macOS, SHA-256, `codesign`, `stapler`
-и Gatekeeper. Распространяется DMG из `artifacts/macos/<version>/`.
-
-У KnowYourLimits нет Tauri updater. Для публикации на GitHub используется
-`zamokctl github-release`; сервер Zamok, продукт, лицензирование Zamok
-и ключи обновления Tish не нужны. Команда прикладывает DMG и `manifest.json`.
+## Релиз через GitHub Actions
 
 Версия должна совпадать в `package.json`, `src-tauri/tauri.conf.json`
-и `src-tauri/Cargo.toml`. Публичные заметки находятся в
-`docs/releases/<version>.md`. Проверка: `bun run check:release`.
-
-## Что осталось перед первым релизом
-
-- Исходники размещаются в приватном репозитории `bshk-app/KnowYourLimits`.
-- Выбрать открытую лицензию и добавить `LICENSE`.
-- Восстановить профиль нотаризации `notarize` либо указать существующий
-  профиль или ключ App Store Connect. Developer ID из `packaging/macos.json`
-  найден; профиль `notarize` отсутствует.
-- Вручную проверить нативную панель, настройки, подключение CLI,
-  отмену чтения и сохранение настроек после перезапуска.
-
-До получения `notarized: true` и `stapled: true` в новом manifest macOS-сборка
-0.2.4 не считается готовым скачиваемым релизом. Это не блокирует Windows-сборку.
-
-## Исходники
-
-Для публичного репозитория нужны исходники `src/`, `src-tauri/` (без `target/`
-и `gen/`), `assets/`, `tests/`, `scripts/`, `packaging/`, `.github/`, `docs/`,
-HTML, конфигурации, README, LICENSE и оба lock-файла.
-`.gitignore` исключает зависимости, сборки, артефакты, `.env`, приватные
-ключи, локальные настройки агентов, `claudedocs/` и рабочий `progress.md`.
-Не используйте `git add -f` для этих файлов.
-
-После выбора лицензии и подтверждения адреса:
+и `src-tauri/Cargo.toml`. Заметки находятся в `docs/releases/<version>.md`.
+Изменения исходников после опубликованного релиза требуют новой версии.
 
 ```sh
-git init -b main
+bun run check:release
+bun run test:release
 git add .
-git diff --cached --stat
-gitleaks git --staged --redact
-git commit -m "Initial open-source release preparation"
-gh repo create OWNER/KnowYourLimits --public --source . --remote origin --push
+git commit -m "Prepare release"
+git push origin main
+git tag -a v0.2.6 -m "KnowYourLimits 0.2.6"
+git push origin v0.2.6
 ```
 
-Если репозиторий уже создан, добавьте его как `origin` и отправьте `main`.
-`OWNER` нужно заменить подтверждённым именем организации.
+Для следующей версии замените номер во всех файлах и в теге.
+Пуш тега `v*` запускает Release. Также можно вручную запустить этот workflow
+из вкладки Actions, указав уже существующий тег. Произвольная ветка вместо
+тега, несовпадение версии или тега и исходников останавливают публикацию.
 
-## Подпись и нотаризация
+Workflow переиспользует Check: сканирование всей истории на секреты,
+TypeScript/Biome, frontend и release tests, Rust tests/fmt/Clippy на Windows
+и macOS, Playwright на macOS, сборка Windows NSIS и macOS `.app`.
+Ключи авторизации CLI и Apple для этих проверок не нужны. Git хранит текстовые
+файлы с LF, в том числе при checkout на Windows.
 
-Установленный `zamokctl` должен поддерживать `package` и `github-release`
-(подготовка проверена с версией 1.10.1). Приватный ключ Developer ID остаётся
-в Keychain; публичный SHA1 сертификата можно хранить в репозитории.
+После успешных проверок отдельное задание с `contents: write` получает
+Windows-артефакты того же запуска. Оно сверяет версию, тег, commit сборки,
+два ожидаемых имени файлов, размеры и SHA-256. Релиз создаётся черновиком,
+файлы загружаются, затем проверяется их наличие и релиз публикуется.
+Опубликованная версия не перезаписывается; незавершённый черновик можно
+достроить повторным запуском workflow для того же тега.
 
-Для создания профиля выполните на своём Mac:
+Публикуются четыре файла:
+
+- `KnowYourLimits-<version>-windows-x64-setup.exe` — установщик NSIS.
+- `KnowYourLimits-<version>-windows-x64.exe` — запуск без установки.
+- `KnowYourLimits-<version>-windows-x64-manifest.json` — версия, commit,
+  размеры, SHA-256 и состояние подписи.
+- `SHA256SUMS.txt` — SHA-256 установщика и отдельного EXE.
+
+Установщик работает для текущего пользователя и при необходимости
+устанавливает WebView2. Windows-сборка пока без подписи Authenticode.
+Релиз не включает неподписанную macOS `.app`; DMG добавляется только после
+Developer ID, успешной нотаризации и stapling.
+
+## Локальная сборка Windows
+
+```powershell
+bun install --frozen-lockfile
+bun run package:windows
+```
+
+Файлы появляются в `artifacts/windows/<version>/` вместе с `manifest.json`.
+Локальные сборки разрешены с незакоммиченными изменениями, но такой manifest
+содержит `sourceDirty: true` и не принимается публикацией.
+Для публичного релиза используются файлы, собранные в GitHub Actions из тега.
+
+## Исходники и секреты
+
+В репозитории находятся исходники, тесты, документация, иконки, конфигурации
+и lock-файлы. `.gitignore` исключает зависимости, сборки, `.env`, приватные
+ключи, agent-настройки и файлы состояния приложения. Не используйте
+`git add -f` для этих файлов. Автоматическое сканирование секретов использует
+Gitleaks с закреплённой версией и проверенным SHA-256 бинарника.
+
+Приложение не читает файлы credentials/cookies. Авторизацию выполняют
+официальные Claude Code и Codex CLI на компьютере пользователя. Установщик
+не содержит настройки, квоты или авторизацию машины, на которой собран.
+
+История коммитов содержит обычные данные автора Git. Публичные fingerprint
+Developer ID, Team ID и имя профиля Keychain не являются приватными ключами.
+Их наличие не даёт доступа к сертификату или Apple аккаунту.
+
+## Подписанный macOS DMG
+
+Для локальной упаковки нужны `zamokctl`, Developer ID в Keychain и доступный
+профиль `notarize` либо App Store Connect API key. Приватные ключи остаются
+в Keychain или вне репозитория. Для другого профиля можно задать
+`KYL_NOTARY_PROFILE`; fingerprint сертификата переопределяется через
+`KYL_SIGNING_IDENTITY_SHA1`.
 
 ```sh
 xcrun notarytool store-credentials notarize
-```
-
-Команда интерактивно запросит Apple ID, пароль приложения и Team ID.
-Не добавляйте пароль или ключ `.p8` в репозиторий.
-Для другого существующего профиля:
-
-```sh
-export KYL_NOTARY_PROFILE=existing-profile
-# При необходимости: export KYL_NOTARY_KEYCHAIN=/path/to/keychain-db
-```
-
-Как в Tish, поддерживается ключ App Store Connect:
-
-```sh
-export APPLE_API_KEY_PATH=/private/path/AuthKey.p8
-export APPLE_API_KEY=KEY_ID
-export APPLE_API_ISSUER=ISSUER_UUID
-```
-
-Три параметра API задаются вместе. При их наличии используется API-ключ.
-Пароли, сертификаты и ключи не требуются для проверки исходников в CI.
-
-## Проверки и релиз
-
-```sh
-bun install --frozen-lockfile
-bun run check:release
-bun run check
-bun run test
-bun run test:release
-bun run build
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo test --locked --manifest-path src-tauri/Cargo.toml --all-targets
-cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-bunx playwright install chromium
-bun run test:e2e
-```
-
-Создание подписанного DMG без загрузки на GitHub:
-
-```sh
 bun run package:macos
 ```
 
-Существующий `.app` можно упаковать с `--skip-build`, но для GitHub-релиза
-всегда выполняется новая сборка. Отсутствующие credentials обнаруживаются
-до затратной сборки Tauri.
+Tauri собирает `.app`, затем Zamok подписывает, нотарифицирует и прикрепляет
+билеты Apple к приложению и DMG. Скрипт проверяет manifest, SHA-256, `codesign`,
+`stapler` и Gatekeeper. Артефакты находятся в `artifacts/macos/<version>/`.
+Профиль `notarize` необходимо создать на выпускающем Mac; в репозитории нет
+его credentials.
 
-Проверить план без сборки и сетевых обращений:
+App Store Connect использует `APPLE_API_KEY_PATH`, `APPLE_API_KEY` и
+`APPLE_API_ISSUER`, заданные вместе. Значения не добавляются в Git.
+Параметры API не нужны для Windows-релиза.
 
-```sh
-export KYL_GITHUB_REPOSITORY=OWNER/KnowYourLimits
-bun run release:github --dry-run
-```
-
-Создать черновик релиза из чистого, уже отправленного коммита:
-
-```sh
-bun run release:github
-```
-
-Команда проверяет чистое состояние Git и LICENSE, проверяет наличие коммита на GitHub,
-собирает и упаковывает `.app`, проверяет DMG и вызывает
-`zamokctl github-release --no-publish` с точным SHA коммита.
-`GITHUB_TOKEN` берётся из окружения либо из активного входа `gh auth login`;
-значение токена не выводится.
-
-Для непосредственной публикации вместо черновика:
-
-```sh
-bun run release:github --publish
-```
-
-Тег релиза — `v<version>`. Чтобы опубликовать уже проверенный черновик без
-повторной сборки и замены подписанных байтов:
-
-```sh
-gh release edit v0.2.4 --repo OWNER/KnowYourLimits --draft=false
-```
-
-Повторный релиз с изменёнными исходниками должен получить новую версию.
-GitHub Actions проверяет сборку `.app`, но скачиваемый DMG проходит отдельный
-путь Developer ID и нотаризации через Zamok.
+Существующий `bun run release:github` — отдельный локальный путь публикации
+подписанного DMG через Zamok. Он дополнительно требует выбранную `LICENSE`,
+чистый Git, `KYL_GITHUB_REPOSITORY` и авторизацию `gh`. Windows-релиз уже
+опубликованного тега добавлением другого workflow не заменяется.
 
 Ссылки: [Tauri — сборка в GitHub](https://v2.tauri.app/distribute/pipelines/github/),
+[GitHub CLI — создание релиза](https://cli.github.com/manual/gh_release_create),
 [Tauri — подпись macOS](https://v2.tauri.app/distribute/sign/macos/).

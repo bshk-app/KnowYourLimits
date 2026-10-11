@@ -33,3 +33,13 @@ progress.md
 *.pem
 *.key
 *.keychain-db
+
+# Private app state and authentication caches
+settings.json
+quota-cache.json
+quota-retry.json
+auth.json
+credentials.json
+.credentials.json
+*.sqlite
+*.sqlite3

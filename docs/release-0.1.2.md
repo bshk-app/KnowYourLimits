@@ -90,7 +90,7 @@ Codex также вернул текущую недельную квоту. В �
 
 Финальная версия установлена в `/Applications/KnowYourLimits.app`.
 Старая версия корректно завершена SIGTERM, сохранена резервная копия:
-`/Users/akira/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.1.2-1791656658488.app`.
+`~/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.1.2-1791656658488.app`.
 У установленного bundle проверены версия 0.1.2 и строгая подпись; процесс запущен.
 Computer Use при попытке захвата панели вернул timeoutReached, поэтому физический
 клик подключения/входа и packaged WebView визуально не подтверждены. Проверки

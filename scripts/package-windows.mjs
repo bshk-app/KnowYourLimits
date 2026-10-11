@@ -7,6 +7,13 @@ import { readReleaseInfo, root } from './release-common.mjs';
 if (process.platform !== 'win32') throw new Error('Windows packaging requires Windows.');
 if (process.argv.length !== 2) throw new Error('Usage: bun run package:windows');
 const info = readReleaseInfo();
+const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
+  cwd: root,
+  encoding: 'utf8',
+}).trim();
+const sourceDirty = Boolean(
+  execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),
+);
 execFileSync('bun', ['run', 'tauri', 'build', '--bundles', 'nsis'], {
   cwd: root,
   stdio: 'inherit',
@@ -33,6 +40,6 @@ const files = [
 });
 writeFileSync(
   join(output, 'manifest.json'),
-  `${JSON.stringify({ version: info.version, platform: 'windows', arch: 'x64', signed: false, files }, null, 2)}\n`,
+  `${JSON.stringify({ version: info.version, platform: 'windows', arch: 'x64', signed: false, sourceCommit, sourceDirty, files }, null, 2)}\n`,
 );
 console.log(`Windows installer and executable: ${output}`);

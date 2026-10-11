@@ -65,7 +65,7 @@ pinned executable, не публичный SLA других версий.
 SHA-256 `773c5b8780ad0d762fccea98ee2e778a31ddc315721a56e673a289386834045b`.
 Consumer DMG/app проверены codesign, stapler и Gatekeeper (accepted).
 Версия0.2.1 установлена в /Applications/KnowYourLimits.app; backup
-`/Users/akira/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.1-1791661463341.app`.
+`~/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.1-1791661463341.app`.
 Срок1791663458948 записан в app-owned quota-retry.json без нового quota GET.
 Приложение запущено, PID64062 активен. CUA capture timeout; физическое окно
 не подтверждено, UI с mock IPC и настоящий production reader проверены.

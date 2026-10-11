@@ -32,11 +32,11 @@ Zamok подписал и нотарифицировал0.2.3. codesign/deep/str
 (Notarized Developer ID) и stapler для DMG/app пройдены. DMG3 498 977байт,
 SHA-256 `69acd3ffec367501a4e95629a0153cc1d6787d224cced0148d11bbfc89759090`.
 Consumer download hash совпадает. Ссылка:
-https://bshk--55999.getbb.app/KnowYourLimits-0.2.3.dmg; сервер55999/session40973.
+`artifacts/macos/0.2.3/KnowYourLimits-0.2.3.dmg`.
 
 Установлено /Applications/KnowYourLimits.app. Старая0.2.2 завершена через
 owned SIGTERM/awaited shutdown, backup:
-`/Users/akira/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.3-1791737291084.app`.
+`~/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.3-1791737291084.app`.
 Сохранена исходная settings.json в том же каталоге с timestamp1791737291084.
 
 Нативная0.2.3 запущена с закрытой панелью и временным интервалом1мин,

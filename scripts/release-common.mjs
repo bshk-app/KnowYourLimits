@@ -28,8 +28,53 @@ export function readReleaseInfo(directory = root) {
     bundleId: tauri.identifier,
     minMacOS: tauri.bundle.macOS.minimumSystemVersion,
     output: join(directory, 'artifacts/macos', pkg.version),
+    windowsOutput: join(directory, 'artifacts/windows', pkg.version),
     notes,
   };
+}
+
+export function assertReleaseTag(info, tag) {
+  if (tag !== `v${info.version}`) {
+    throw new Error(`Release tag must match the committed version: v${info.version}`);
+  }
+  return tag;
+}
+
+export function verifyWindowsManifest(info) {
+  const manifestPath = join(info.windowsOutput, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  if (
+    manifest.version !== info.version ||
+    manifest.platform !== 'windows' ||
+    manifest.arch !== 'x64' ||
+    typeof manifest.signed !== 'boolean' ||
+    !/^[a-f0-9]{40}$/.test(manifest.sourceCommit || '') ||
+    manifest.sourceDirty !== false
+  ) {
+    throw new Error('Windows manifest must describe this version built from a clean commit.');
+  }
+  const expected = [
+    `${info.name}-${info.version}-windows-x64.exe`,
+    `${info.name}-${info.version}-windows-x64-setup.exe`,
+  ];
+  if (
+    !Array.isArray(manifest.files) ||
+    manifest.files.length !== expected.length ||
+    new Set(manifest.files.map((file) => file.name)).size !== expected.length ||
+    manifest.files.some((file) => !expected.includes(file.name))
+  ) {
+    throw new Error('Windows manifest must contain exactly the installer and portable EXE.');
+  }
+  const files = manifest.files.map((file) => {
+    const path = join(info.windowsOutput, file.name);
+    const bytes = readFileSync(path);
+    const digest = createHash('sha256').update(bytes).digest('hex');
+    if (file.sizeBytes !== bytes.length || file.sha256 !== digest) {
+      throw new Error(`Windows artifact size or SHA-256 mismatch: ${file.name}`);
+    }
+    return path;
+  });
+  return { manifest, manifestPath, files };
 }
 
 export function notaryOptions(config, env = process.env) {

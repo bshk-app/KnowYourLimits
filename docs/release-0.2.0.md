@@ -107,7 +107,7 @@ Gatekeeper принимают DMG и приложение внутри consumer 
 
 Обновлена `/Applications/KnowYourLimits.app`, версия 0.2.0.
 Предыдущий bundle корректно завершён и сохранён в
-`/Users/akira/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.0-1791659651320.app`.
+`~/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.0-1791659651320.app`.
 Новая версия запущена, процесс PID6615 сохранялся активным больше минуты.
 Computer Use при попытке захвата панели вернул timeoutReached; физический клик
 разрешения/уведомления не подтверждён. Renderer PNG и UI с mock IPC проверены.

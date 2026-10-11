@@ -5,7 +5,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, test } from 'node:test';
-import { notaryOptions, readReleaseInfo, root, verifyManifest } from './release-common.mjs';
+import {
+  assertReleaseTag,
+  notaryOptions,
+  readReleaseInfo,
+  root,
+  verifyManifest,
+  verifyWindowsManifest,
+} from './release-common.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'kyl-release-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -171,4 +178,86 @@ test('dry-run prepares a draft without credentials, Git or network access', () =
   assert.ok(!command.includes('--publish'));
   assert.equal(command[0], 'zamokctl');
   assert.equal(command.at(-1), '<clean HEAD>');
+});
+
+function windowsFixture() {
+  const { info } = fixture();
+  mkdirSync(info.windowsOutput, { recursive: true });
+  const files = [
+    `${info.name}-${info.version}-windows-x64.exe`,
+    `${info.name}-${info.version}-windows-x64-setup.exe`,
+  ].map((name) => {
+    const bytes = Buffer.from(`synthetic test bytes for ${name}`);
+    writeFileSync(join(info.windowsOutput, name), bytes);
+    return {
+      name,
+      sizeBytes: bytes.length,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    };
+  });
+  const manifest = {
+    version: info.version,
+    platform: 'windows',
+    arch: 'x64',
+    signed: false,
+    sourceCommit: 'a'.repeat(40),
+    sourceDirty: false,
+    files,
+  };
+  const saveManifest = () =>
+    writeFileSync(join(info.windowsOutput, 'manifest.json'), JSON.stringify(manifest));
+  saveManifest();
+  return { info, manifest, saveManifest };
+}
+
+test('release tag must match the exact stable source version', () => {
+  const { info } = fixture();
+  assert.equal(assertReleaseTag(info, 'v1.2.3'), 'v1.2.3');
+  for (const tag of [undefined, 'main', 'v1.2.2', 'v1.2.3-beta', 'v1.2.3\nversion=other']) {
+    assert.throws(() => assertReleaseTag(info, tag), /tag must match/);
+  }
+});
+
+test('Windows manifest validates both executables and their exact bytes', () => {
+  const { info, manifest } = windowsFixture();
+  const verified = verifyWindowsManifest(info);
+  assert.equal(verified.files.length, 2);
+  assert.equal(verified.manifest.sourceCommit, manifest.sourceCommit);
+  writeFileSync(verified.files[1], 'a replaced installer');
+  assert.throws(() => verifyWindowsManifest(info), /SHA-256 mismatch/);
+});
+
+test('Windows release rejects dirty, untraceable and mismatched builds', () => {
+  for (const [key, value] of [
+    ['sourceDirty', true],
+    ['sourceCommit', undefined],
+    ['sourceCommit', 'not-a-commit'],
+    ['version', '1.2.2'],
+    ['platform', 'macos'],
+    ['arch', 'arm64'],
+    ['signed', 'false'],
+  ]) {
+    const { info, manifest, saveManifest } = windowsFixture();
+    manifest[key] = value;
+    saveManifest();
+    assert.throws(() => verifyWindowsManifest(info), /clean commit/);
+  }
+});
+
+test('Windows release rejects extra, missing, duplicate and escaping assets', () => {
+  for (const mutate of [
+    (files) => files.pop(),
+    (files) => files.push(files[0]),
+    (files) => {
+      files[1] = files[0];
+    },
+    (files) => {
+      files[0].name = '../other.exe';
+    },
+  ]) {
+    const { info, manifest, saveManifest } = windowsFixture();
+    mutate(manifest.files);
+    saveManifest();
+    assert.throws(() => verifyWindowsManifest(info), /exactly the installer/);
+  }
 });

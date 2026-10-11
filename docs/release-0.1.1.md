@@ -77,7 +77,4 @@ The original Tauri build output remains unsigned/ad hoc; distribute the Zamok ar
 
 ## References
 
-- [Murmur pipeline](/Volumes/DATA/Murmur/scripts/release.sh)
-- [Tish pipeline](/Users/akira/Projects/My/TishinaProject/monorepo/apps/tish-mac/Taskfile.yml:1196)
-- [Zamok release skill](/Users/akira/Projects/My/ZamokProject/skills/zamok-release/SKILL.md)
 - [Tauri event permissions](https://v2.tauri.app/reference/javascript/api/namespaceevent/#remarks)

@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to build and publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.0
+      - name: Validate the version tag
+        id: version
+        env:
+          KYL_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: bun scripts/publish-windows-release.mjs --check-tag
+  checks:
+    needs: validate
+    uses: ./.github/workflows/check.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
+  publish:
+    needs: [validate, checks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: KnowYourLimits-windows-x64
+          path: artifacts/windows/${{ needs.validate.outputs.version }}
+      - name: Verify and publish the Windows release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KYL_GITHUB_REPOSITORY: ${{ github.repository }}
+          KYL_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: node scripts/publish-windows-release.mjs

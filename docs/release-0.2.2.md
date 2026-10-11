@@ -39,7 +39,7 @@ DMG3 488 763 байта, SHA-256
 
 0.2.2 установлена в /Applications/KnowYourLimits.app. Предыдущая версия закрыта
 через owned SIGTERM/awaited shutdown и сохранена в
-`/Users/akira/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.2-1791663195225.app`.
+`~/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.2-1791663195225.app`.
 
 Получен настоящий Codex snapshot через production reader с явным--persist:
 91%использовано, fetchedAt1791663165562. Cache restoration через настоящий
@@ -53,6 +53,6 @@ timeout; физическое окно не подтверждено. UI про�
 растеризация — настоящими CoreText/CoreGraphics; cache — production Coordinator.
 Временный cache probe удалён после проверки.
 
-Скачивание: https://bshk--55999.getbb.app/KnowYourLimits-0.2.2.dmg;
+Артефакт: `artifacts/macos/0.2.2/KnowYourLimits-0.2.2.dmg`;
 порт55999, session70146. Consumer download hash совпадает с DMG,
 старые ссылкиredirect на0.2.2.

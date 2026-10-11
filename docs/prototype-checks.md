@@ -40,6 +40,6 @@ Escape / потеря фокуса / закрытие скрывают её. И�
 
 ## Просмотр
 
-Во время этой сессии preview доступен по [BB Connect](https://bshk--4173.getbb.app).
+Для локальной проверки preview запускается командой `bun run preview`.
 Сервер — background task `kyl-prototype-preview`; прекращение/перезагрузка сессии может
 остановить его. Для повторного запуска используйте `bun run build && bun run preview`.
