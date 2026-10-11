@@ -1,0 +1,40 @@
+[package]
+name = "knowyourlimits"
+version = "0.2.4"
+edition = "2021"
+rust-version = "1.90"
+description = "A desktop tray quota indicator for Claude and Codex"
+
+[lib]
+name = "knowyourlimits_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.1", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "=2.5.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "=0.4.45", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.2", features = ["process", "io-util", "time", "macros", "signal"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.190"
+
+[target.'cfg(windows)'.dependencies]
+dunce = "=1.0.5"
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Globalization"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-graphics = "=0.25.0"
+core-text = "=22.0.0"
+objc2 = "=0.6.5"
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["NSImage", "NSStatusItem", "NSStatusBar", "NSButton", "NSCell", "NSEvent", "NSView", "NSWindow"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["NSString", "NSError", "NSObject", "NSGeometry", "NSBundle", "NSLocale", "NSArray"] }
+objc2-user-notifications = { version = "=0.3.2", default-features = false, features = ["std", "block2", "UNUserNotificationCenter", "UNNotification", "UNNotificationContent", "UNNotificationRequest", "UNNotificationTrigger", "UNNotificationSound"] }
+block2 = "=0.6.2"
+
+[dev-dependencies]
+png = "=0.18.1"

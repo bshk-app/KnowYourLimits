@@ -1,0 +1,1046 @@
+/* KnowYourLimits — native macOS look. Tokens and kyl-* components follow the
+   Claude Design project "KnowYourLimits" (styles.css); tray-* renders menu-bar previews. */
+
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+
+  --canvas: #d8dcdb;
+  --panel: #ececec;
+  --card: #fbfbfb;
+  --text: #262626;
+  --muted: #5f5f64;
+  --line: rgba(0, 0, 0, 0.1);
+  --line-strong: rgba(0, 0, 0, 0.18);
+  --track: rgba(0, 0, 0, 0.08);
+  --accent: #2c7255;
+  --ok: #34c759;
+  --warn: #9a5400;
+  --warn-fill: #f29b13;
+  --warn-soft: rgba(242, 155, 19, 0.14);
+  --crit: #c0271b;
+  --crit-fill: #ff3b30;
+  --crit-soft: rgba(255, 59, 48, 0.12);
+  --tile-default: #1c3434;
+  --primary-bg: var(--accent);
+  --primary-text: #ffffff;
+  --primary-active: #245f47;
+  --focus: rgba(44, 114, 85, 0.5);
+  --btn-bg: #ffffff;
+  --btn-active: #e4e4e4;
+  --btn-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 0.5px 1.5px rgba(0, 0, 0, 0.16);
+  --seg-sel: #ffffff;
+  --seg-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 0.5px 1.5px rgba(0, 0, 0, 0.2);
+  --field-bg: #ffffff;
+  --knob: #ffffff;
+  --card-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  --win-bar: #f6f6f6;
+  --popup-arrow: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%274%27 fill=%27%232c7255%27/%3E%3Cpath d=%27M5.5 6.5L8 4l2.5 2.5M5.5 9.5L8 12l2.5-2.5%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.4%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E");
+  --shadow-panel:
+    0 0 0 0.5px rgba(0, 0, 0, 0.2), 0 12px 32px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.08);
+
+  --fs-caption: 11px;
+  --fs-body: 12px;
+  --fs-title: 13px;
+  --fs-value: 22px;
+
+  --r-panel: 12px;
+  --r-card: 10px;
+  --r-control: 6px;
+  --r-tile: 7px;
+  --r-pill: 999px;
+
+  color-scheme: light;
+  color: var(--text);
+  font: var(--fs-body) / 1.35 var(--font);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #161818;
+    --panel: #1f1f21;
+    --card: #2c2c2e;
+    --text: #ececec;
+    --muted: #a1a1a6;
+    --line: rgba(255, 255, 255, 0.1);
+    --line-strong: rgba(255, 255, 255, 0.18);
+    --track: rgba(255, 255, 255, 0.1);
+    --accent: #8ddcb3;
+    --warn: #ffb340;
+    --warn-fill: #ff9f0a;
+    --warn-soft: rgba(255, 159, 10, 0.16);
+    --crit: #ff6961;
+    --crit-fill: #ff453a;
+    --crit-soft: rgba(255, 69, 58, 0.16);
+    --tile-default: #8ddcb3;
+    --primary-bg: #2a7a58;
+    --primary-active: #318a64;
+    --focus: rgba(141, 220, 179, 0.5);
+    --btn-bg: rgba(255, 255, 255, 0.17);
+    --btn-active: rgba(255, 255, 255, 0.26);
+    --btn-shadow:
+      inset 0 0.5px 0 rgba(255, 255, 255, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.4),
+      0 0.5px 1.5px rgba(0, 0, 0, 0.3);
+    --seg-sel: #5d5d60;
+    --seg-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.1), 0 0.5px 1.5px rgba(0, 0, 0, 0.35);
+    --field-bg: rgba(0, 0, 0, 0.22);
+    --knob: #e8e8e8;
+    --card-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
+    --win-bar: #2a2a2c;
+    --popup-arrow: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%274%27 fill=%27%232a7a58%27/%3E%3Cpath d=%27M5.5 6.5L8 4l2.5 2.5M5.5 9.5L8 12l2.5-2.5%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.4%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E");
+    --shadow-panel:
+      0 0 0 0.5px rgba(0, 0, 0, 0.7), inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+      0 12px 32px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+#app [hidden] {
+  display: none;
+}
+body {
+  margin: 0;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+h1,
+h2,
+p {
+  margin: 0;
+}
+button,
+input,
+select {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The browser preview frames the panel and the settings window on a canvas;
+   the app fills each native window edge to edge. */
+.preview {
+  min-height: 100svh;
+  padding: 24px 12px;
+  background: var(--canvas);
+}
+.native {
+  background: var(--panel);
+}
+.preview-frame {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 360px;
+  max-width: 100%;
+  margin: 0 auto 12px;
+}
+.native .preview-frame {
+  display: none;
+}
+.preview-label {
+  color: var(--muted);
+  font-size: 10px;
+}
+.menu-bar {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-control);
+  background: var(--win-bar);
+  box-shadow:
+    var(--card-shadow),
+    0 0 0 0.5px var(--line);
+}
+
+/* ── Panel ─────────────────────────────────────────────────────────────── */
+
+.kyl-panel {
+  width: 360px;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--panel);
+}
+.preview .kyl-panel {
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow-panel);
+}
+.kyl-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 10px;
+}
+.kyl-head img {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+.kyl-head h1 {
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+.kyl-head p {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+.kyl-body {
+  display: grid;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+.kyl-cards,
+.kyl-windows {
+  display: grid;
+  gap: 6px;
+}
+.kyl-windows {
+  gap: 10px;
+}
+.kyl-note {
+  margin: 2px 6px 0;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+.kyl-menu {
+  margin: 0 14px;
+  padding: 5px 0;
+  border-top: 0.5px solid var(--line-strong);
+}
+.kyl-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: calc(100% + 12px);
+  min-height: 24px;
+  margin: 0 -6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  font-size: var(--fs-title);
+}
+.kyl-menu-item kbd {
+  color: var(--muted);
+  font: inherit;
+}
+.kyl-menu-item:hover:not(:disabled) {
+  background: var(--track);
+}
+.kyl-menu-item:disabled {
+  opacity: 0.4;
+}
+.kyl-foot {
+  margin: 0 14px;
+  padding: 8px 0 10px;
+  border-top: 0.5px solid var(--line-strong);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+
+/* ── Quota window ──────────────────────────────────────────────────────── */
+
+.kyl-window {
+  --fill: var(--accent);
+  --tone: var(--muted);
+  display: grid;
+  gap: 5px;
+}
+.kyl-window-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.kyl-window-row b {
+  font-weight: 500;
+}
+.kyl-window-row .used {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.kyl-window-row.small {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+.kyl-window-row .tone {
+  color: var(--tone);
+}
+.kyl-bar {
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--track);
+}
+.kyl-bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--v);
+  border-radius: inherit;
+  background: var(--fill);
+}
+.kyl-bar > s {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--t);
+  width: 2px;
+  margin-left: -1px;
+  background: var(--card);
+}
+.kyl-window.warning {
+  --fill: var(--warn-fill);
+  --tone: var(--warn);
+}
+.kyl-window.critical,
+.kyl-window.exhausted {
+  --fill: var(--crit-fill);
+  --tone: var(--crit);
+}
+.kyl-window.warning .used,
+.kyl-window.critical .used,
+.kyl-window.exhausted .used {
+  color: var(--tone);
+  font-weight: 500;
+}
+.kyl-window.historical {
+  --fill: repeating-linear-gradient(-45deg, var(--line-strong) 0 3px, transparent 3px 6px);
+  --tone: var(--muted);
+}
+
+/* ── Provider card ─────────────────────────────────────────────────────── */
+
+.kyl-card {
+  display: grid;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-card);
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+}
+.kyl-card-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px 10px;
+}
+.kyl-tile {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-tile);
+  background: color-mix(in srgb, var(--provider, var(--tile-default)) 14%, transparent);
+  color: var(--provider, var(--tile-default));
+  font: 600 13px / 1 var(--font);
+}
+.kyl-tile svg {
+  width: 14px;
+  height: 14px;
+}
+.kyl-tile .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.kyl-name {
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+.kyl-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+.kyl-left {
+  text-align: right;
+}
+.kyl-left b {
+  display: block;
+  font:
+    600 var(--fs-value) / 1 "SF Pro Display",
+    var(--font);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.kyl-left span {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+.kyl-left.is-empty b,
+.kyl-left.is-past b {
+  color: var(--muted);
+}
+.kyl-left.is-empty b {
+  font-weight: 400;
+}
+.kyl-left.warn b {
+  color: var(--warn);
+}
+.kyl-left.crit b {
+  color: var(--crit);
+}
+.kyl-card-text {
+  color: var(--muted);
+}
+.kyl-card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--line);
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+
+/* ── Status: dot + label, as in System Settings ────────────────────────── */
+
+.kyl-badge {
+  --dot: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font: 400 var(--fs-caption) / 16px var(--font);
+}
+.kyl-badge::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dot);
+  box-shadow: inset 0 0 0 1.2px var(--muted);
+}
+.kyl-badge.ok {
+  --dot: var(--ok);
+}
+.kyl-badge.ok::before,
+.kyl-badge.warn::before,
+.kyl-badge.crit::before {
+  box-shadow: none;
+}
+.kyl-badge.warn {
+  --dot: var(--warn-fill);
+  color: var(--warn);
+}
+.kyl-badge.crit {
+  --dot: var(--crit-fill);
+  color: var(--crit);
+}
+.kyl-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: -2px;
+}
+.kyl-glyph::before {
+  content: "!";
+  color: var(--card);
+}
+.kyl-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: kyl-pulse 1.6s ease-in-out infinite;
+}
+
+/* ── Controls — NSButton, NSPopUpButton, NSTextField ───────────────────── */
+
+.kyl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--btn-bg);
+  box-shadow: var(--btn-shadow);
+  font: 400 var(--fs-body) / 1 var(--font);
+  white-space: nowrap;
+}
+.kyl-btn:active:not(:disabled) {
+  background: var(--btn-active);
+}
+.kyl-btn.primary {
+  background: var(--primary-bg);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.18),
+    0 0.5px 1.5px rgba(0, 0, 0, 0.22);
+  color: var(--primary-text);
+}
+.kyl-btn.primary:active:not(:disabled) {
+  background: var(--primary-active);
+}
+.kyl-btn.text {
+  min-height: 20px;
+  padding: 0 2px;
+  background: none;
+  box-shadow: none;
+  color: var(--accent);
+}
+.kyl-btn.text:active:not(:disabled) {
+  background: none;
+  opacity: 0.6;
+}
+.kyl-btn.block {
+  width: 100%;
+}
+.kyl-btn:disabled {
+  opacity: 0.4;
+}
+.kyl-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.kyl-input,
+.kyl-select {
+  min-height: 22px;
+  border: 0;
+  border-radius: var(--r-control);
+  font: var(--fs-body) / 1 var(--font);
+  font-variant-numeric: tabular-nums;
+}
+.kyl-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0 24px 0 9px;
+  background:
+    var(--popup-arrow) no-repeat right 3px center / 16px 16px,
+    var(--btn-bg);
+  box-shadow: var(--btn-shadow);
+}
+.kyl-select:disabled {
+  opacity: 0.4;
+}
+.kyl-select[aria-invalid="true"] {
+  box-shadow:
+    inset 0 0 0 1px var(--crit),
+    0 0 0 3px var(--crit-soft);
+}
+.kyl-input {
+  padding: 0 7px;
+  background: var(--field-bg);
+  box-shadow:
+    inset 0 0 0 0.5px var(--line-strong),
+    inset 0 1px 1px rgba(0, 0, 0, 0.04);
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.kyl-input[aria-invalid="true"] {
+  box-shadow:
+    inset 0 0 0 1px var(--crit),
+    0 0 0 3px var(--crit-soft);
+}
+.kyl-hint {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+.kyl-hint.error {
+  color: var(--crit);
+}
+.kyl-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--warn-soft);
+  font-size: var(--fs-caption);
+}
+.kyl-callout .kyl-glyph {
+  flex: none;
+  margin-top: 1px;
+  color: var(--warn);
+}
+.kyl-callout.crit {
+  display: grid;
+  background: var(--crit-soft);
+}
+.kyl-callout h2 {
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+/* Borderless toolbar button with an SF-style gearshape */
+.kyl-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+}
+.kyl-icon-btn::before {
+  content: "";
+  width: 15px;
+  height: 15px;
+  background: currentColor;
+  -webkit-mask:
+    url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 20 20%27 fill=%27none%27 stroke=%27%23000%27%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%277.6%27 stroke-width=%272.4%27 stroke-dasharray=%273 2.97%27/%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%275%27 stroke-width=%272.2%27/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 20 20%27 fill=%27none%27 stroke=%27%23000%27%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%277.6%27 stroke-width=%272.4%27 stroke-dasharray=%273 2.97%27/%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%275%27 stroke-width=%272.2%27/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+.kyl-icon-btn:hover:not(:disabled) {
+  background: var(--track);
+  color: var(--text);
+}
+.kyl-icon-btn:active:not(:disabled) {
+  background: var(--line-strong);
+}
+.kyl-icon-btn:disabled {
+  opacity: 0.4;
+}
+
+/* NSSegmentedControl built from radios */
+.kyl-seg {
+  display: flex;
+  padding: 1px;
+  border-radius: 7px;
+  background: var(--track);
+}
+.kyl-seg label {
+  position: relative;
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 20px;
+  padding: 0 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.kyl-seg label + label {
+  box-shadow: -0.5px 0 0 var(--line-strong);
+}
+.kyl-seg label:has(:checked),
+.kyl-seg label:has(:checked) + label {
+  box-shadow: none;
+}
+.kyl-seg label:has(:checked) {
+  background: var(--seg-sel);
+  box-shadow: var(--seg-shadow);
+  font-weight: 500;
+}
+.kyl-seg input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+.kyl-seg svg {
+  width: 11px;
+  height: 11px;
+}
+.kyl-seg .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* System Settings–style grouped form: title above, rows with inset hairlines */
+.kyl-group-title {
+  margin: 0 2px -4px;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+.kyl-group {
+  display: grid;
+  padding: 0 10px;
+  border-radius: var(--r-card);
+  background: var(--card);
+  box-shadow: var(--card-shadow);
+}
+.kyl-group > * {
+  padding: 5px 0;
+}
+.kyl-group > * + * {
+  border-top: 0.5px solid var(--line);
+}
+.kyl-group > .kyl-hint {
+  margin-top: -2px;
+  padding-top: 0;
+  border-top: 0;
+}
+.kyl-pref {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 22px;
+}
+.kyl-pref .kyl-select {
+  min-width: 140px;
+}
+.kyl-pref .kyl-input {
+  width: 120px;
+  text-align: right;
+}
+.kyl-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kyl-well {
+  flex: none;
+  width: 30px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: var(--btn-bg);
+  box-shadow: var(--btn-shadow);
+}
+.kyl-well::-webkit-color-swatch-wrapper {
+  padding: 3px;
+}
+.kyl-well::-webkit-color-swatch {
+  border: 0;
+  border-radius: 3px;
+}
+.kyl-well:disabled {
+  opacity: 0.4;
+}
+
+/* NSSwitch */
+.kyl-switch {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 22px;
+}
+.kyl-switch input {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: var(--track);
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+  transition: background 0.12s ease;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.kyl-switch input::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.12s ease;
+}
+.kyl-switch input:checked {
+  background: var(--primary-bg);
+  box-shadow: none;
+}
+.kyl-switch input:checked::before {
+  transform: translateX(14px);
+}
+.kyl-switch:has(:disabled) {
+  opacity: 0.4;
+}
+
+/* Appearance-style picker: menu-bar thumbnail with a label under it */
+.kyl-layouts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.kyl-layout {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: var(--fs-caption);
+}
+.kyl-layout input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+.kyl-layout .layout-sample {
+  justify-content: center;
+  width: 100%;
+  height: 32px;
+  border-radius: 7px;
+  background: var(--card);
+  box-shadow:
+    var(--card-shadow),
+    0 0 0 0.5px var(--line);
+}
+.kyl-layout:has(:checked) {
+  font-weight: 600;
+}
+.kyl-layout:has(:checked) .layout-sample {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+/* ── Settings window — NSWindow with toolbar tabs ──────────────────────── */
+
+.kyl-win {
+  display: grid;
+  width: 420px;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--panel);
+}
+.preview .kyl-win {
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow-panel);
+}
+.native .kyl-win {
+  width: 100%;
+}
+.kyl-win-bar {
+  display: grid;
+  gap: 2px;
+  padding: 0 0 4px;
+  background: var(--win-bar);
+  box-shadow: 0 0.5px 0 var(--line-strong);
+}
+/* Native traffic lights overlay the left edge of this row. */
+.kyl-win-bar h1 {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+.kyl-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+}
+.kyl-tabs button {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 70px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  line-height: 1;
+}
+.kyl-tabs svg {
+  width: 18px;
+  height: 18px;
+}
+.kyl-tabs button[aria-selected="true"] {
+  background: var(--track);
+  color: var(--text);
+}
+.kyl-tabs button[aria-selected="true"] svg {
+  color: var(--accent);
+}
+.kyl-win-body {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+.kyl-pane {
+  display: grid;
+  gap: 8px;
+}
+.kyl-win-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 12px;
+}
+.kyl-win-foot .kyl-actions {
+  flex: none;
+}
+
+/* Focus ring for every control, after all control states */
+.kyl-btn:focus-visible,
+.kyl-input:focus-visible,
+.kyl-select:focus-visible,
+.kyl-icon-btn:focus-visible,
+.kyl-menu-item:focus-visible,
+.kyl-tabs button:focus-visible,
+.kyl-switch input:focus-visible,
+.kyl-well:focus-visible,
+.kyl-seg label:has(:focus-visible),
+.kyl-layout:has(:focus-visible) .layout-sample {
+  outline: 3px solid var(--focus);
+  outline-offset: 0;
+}
+
+/* ── Menu-bar previews (src/tray.ts) ───────────────────────────────────── */
+
+.tray-visual {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 22px;
+  color: var(--text);
+}
+.tray-provider {
+  --indicator-scale: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+}
+.tray-provider.size-small {
+  --indicator-scale: 0.85;
+}
+.tray-provider.size-large {
+  --indicator-scale: 1.15;
+}
+.tray-provider.no-quota {
+  opacity: 0.52;
+}
+.tray-provider.historical {
+  opacity: 0.65;
+}
+.tray-value {
+  min-width: 3.7ch;
+  font-size: calc(12px * var(--indicator-scale));
+  font-weight: 500;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.tray-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(12px * var(--indicator-scale));
+  height: calc(12px * var(--indicator-scale));
+  font-size: calc(12px * var(--indicator-scale));
+  font-weight: 600;
+}
+.provider-symbol {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tray-mark i {
+  width: 40%;
+  height: 40%;
+  border-radius: 50%;
+  background: currentColor;
+}
+.layout-inline .icon-none {
+  display: none;
+}
+.layout-stacked .tray-provider {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+}
+.layout-stacked .tray-mark {
+  width: calc(8px * var(--indicator-scale));
+  height: calc(8px * var(--indicator-scale));
+  margin-bottom: 2px;
+  font-size: calc(8px * var(--indicator-scale));
+}
+.layout-stacked .tray-mark.text-label {
+  width: auto;
+  font-size: 7px;
+  line-height: 8px;
+}
+.layout-stacked .tray-value {
+  font-size: calc(10px * var(--indicator-scale));
+  font-weight: 600;
+  line-height: 11px;
+  text-align: center;
+}
+.layout-rings .tray-provider {
+  justify-content: center;
+  width: calc(20px * var(--indicator-scale));
+  height: calc(20px * var(--indicator-scale));
+}
+.tray-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.layout-rings .tray-mark {
+  width: calc(8px * var(--indicator-scale));
+  height: calc(8px * var(--indicator-scale));
+  font-size: calc(8px * var(--indicator-scale));
+}
+
+@keyframes kyl-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kyl-dot {
+    animation: none;
+  }
+  .kyl-switch input,
+  .kyl-switch input::before {
+    transition: none;
+  }
+}

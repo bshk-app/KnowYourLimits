@@ -1,0 +1,34 @@
+{
+  "name": "knowyourlimits",
+  "version": "0.2.4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:release": "node --test scripts/release.test.mjs",
+    "check:release": "bun scripts/check-release.mjs",
+    "check": "biome check .",
+    "format": "biome check --write .",
+    "tauri": "tauri",
+    "icons": "tauri icon assets/icons/app.svg && tauri icon assets/icons/tray.svg -o src-tauri/icons/tray -p 44",
+    "package:macos": "bun scripts/package-macos.mjs",
+    "package:windows": "bun scripts/package-windows.mjs",
+    "release:github": "bun scripts/release-github.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.64.0",
+    "@tauri-apps/cli": "2.12.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
+  }
+}
