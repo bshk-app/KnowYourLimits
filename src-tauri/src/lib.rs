@@ -221,6 +221,9 @@ fn update_tray(app: &AppHandle) -> Result<(), String> {
 #[cfg(windows)]
 fn update_windows_trays(app: &AppHandle, state: &AppState) -> Result<(), String> {
     let runtime = app.state::<RuntimeState>();
+    // Also re-read on the existing five-second ticker: changing only Windows mode
+    // need not produce a webview ThemeChanged event when app mode stays the same.
+    let theme = windows_tray::system_theme();
     let mut cache = runtime
         .windows_icons
         .lock()
@@ -229,7 +232,7 @@ fn update_windows_trays(app: &AppHandle, state: &AppState) -> Result<(), String>
         let Some(tray) = app.tray_by_id(windows_tray::tray_id(id)) else {
             continue;
         };
-        let indicator = windows_tray::Indicator::new(state, id, now_ms());
+        let indicator = windows_tray::Indicator::new(state, id, now_ms(), theme);
         let visible = state.settings.bar_providers.contains(&id);
         let previous = &cache[id.index()];
         if previous.as_ref().is_none_or(|(_, old)| old != &indicator) {
@@ -812,8 +815,13 @@ pub fn run() {
                         ProviderId::Codex
                     };
                     Image::new_owned(
-                        windows_tray::Indicator::new(&coordinator.snapshot(), id, now_ms())
-                            .render(windows_tray::ICON_SIZE),
+                        windows_tray::Indicator::new(
+                            &coordinator.snapshot(),
+                            id,
+                            now_ms(),
+                            windows_tray::system_theme(),
+                        )
+                        .render(windows_tray::ICON_SIZE),
                         windows_tray::ICON_SIZE,
                         windows_tray::ICON_SIZE,
                     )
