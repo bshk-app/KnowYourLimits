@@ -4,6 +4,12 @@ import { catalogs } from '../src/locales';
 import { type AppState, disconnectedState, type ProviderId, type Settings } from '../src/model';
 import { sampleState } from './fixtures';
 
+// The existing native scenarios exercise macOS layouts on every test host.
+test.use({
+  userAgent:
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+});
+
 declare global {
   interface Window {
     nativeMock: {
@@ -567,4 +573,28 @@ test('all settings translations fit and changing language preserves unsaved fiel
   await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
   await expect(page.locator('#settings-result')).toHaveText(catalogs.fi.settingsSaved);
   await page.screenshot({ path: 'artifacts/localization-settings-fi.png' });
+});
+
+test.describe('Windows provider icons', () => {
+  test.use({
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+  });
+
+  test('hides macOS layouts and still saves provider selection and appearance', async ({
+    page,
+  }) => {
+    await mockNative(page, sampleState(), false, 'settings.html#menubar');
+    await expect(page.locator('#layout-title')).toBeHidden();
+    await expect(page.locator('.kyl-layouts')).toBeHidden();
+    await page.locator('#second-provider').selectOption('none');
+    await page.getByRole('tab', { name: 'Claude', exact: true }).click();
+    await page.getByRole('radio', { name: 'Letter', exact: true }).check();
+    await page.getByRole('radio', { name: 'Large', exact: true }).check();
+    await page.locator('#save-settings').click();
+    await expect(page.locator('#settings-result')).toHaveText('Settings saved.');
+    expect(await count(page, 'save_settings')).toBe(1);
+    await page.getByRole('tab', { name: 'Menu bar', exact: true }).click();
+    await expect(page.locator('#second-provider')).toHaveValue('none');
+  });
 });

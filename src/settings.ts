@@ -141,6 +141,11 @@ app.innerHTML = `
 `;
 localizeDOM();
 document.body.classList.add(isNative ? 'native' : 'preview');
+// Windows uses fixed square provider icons; the macOS row layouts do not apply.
+if (isNative && navigator.userAgent.includes('Windows')) {
+  element('#layout-title').hidden = true;
+  element('.kyl-layouts').hidden = true;
+}
 
 function trayGlyph(): SVGElement {
   const template = document.createElement('template');

@@ -14,6 +14,7 @@ mod storage;
 pub mod tray_render;
 #[cfg(all(test, windows))]
 mod windows_tests;
+pub mod windows_tray;
 
 use i18n::t;
 use live::Coordinator;
@@ -38,6 +39,9 @@ struct RuntimeState {
     settings_path: PathBuf,
     tray: TrayItems,
     panel_click: Mutex<Option<bool>>,
+    panel_tray: Mutex<String>,
+    #[cfg(windows)]
+    windows_icons: Mutex<[Option<(bool, windows_tray::Indicator)>; 2]>,
     #[cfg(windows)]
     settings_transition: tauri::async_runtime::Mutex<()>,
     exit: ExitGate,
@@ -78,6 +82,8 @@ fn update_tray(app: &AppHandle) -> Result<(), String> {
     let state = snapshot(app)?;
     let title = state.title(now_ms());
     let language = &state.settings.language;
+    #[cfg(windows)]
+    update_windows_trays(app, &state)?;
     if let Some(tray) = app.tray_by_id("main-tray") {
         #[cfg(target_os = "macos")]
         {
@@ -209,6 +215,39 @@ fn update_tray(app: &AppHandle) -> Result<(), String> {
             "KnowYourLimits".into()
         })
         .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn update_windows_trays(app: &AppHandle, state: &AppState) -> Result<(), String> {
+    let runtime = app.state::<RuntimeState>();
+    let mut cache = runtime
+        .windows_icons
+        .lock()
+        .expect("Windows tray rendering");
+    for id in [ProviderId::Claude, ProviderId::Codex] {
+        let Some(tray) = app.tray_by_id(windows_tray::tray_id(id)) else {
+            continue;
+        };
+        let indicator = windows_tray::Indicator::new(state, id, now_ms());
+        let visible = state.settings.bar_providers.contains(&id);
+        let previous = &cache[id.index()];
+        if previous.as_ref().is_none_or(|(_, old)| old != &indicator) {
+            tray.set_icon(Some(Image::new_owned(
+                indicator.render(windows_tray::ICON_SIZE),
+                windows_tray::ICON_SIZE,
+                windows_tray::ICON_SIZE,
+            )))
+            .map_err(|error| error.to_string())?;
+            tray.set_tooltip(Some(indicator.tooltip()))
+                .map_err(|error| error.to_string())?;
+        }
+        if previous.as_ref().is_none_or(|(old, _)| *old != visible) {
+            tray.set_visible(visible)
+                .map_err(|error| error.to_string())?;
+        }
+        cache[id.index()] = Some((visible, indicator));
+    }
     Ok(())
 }
 #[tauri::command]
@@ -436,9 +475,26 @@ fn show_panel(app: &AppHandle) -> tauri::Result<()> {
     let Some(window) = app.get_webview_window("main") else {
         return Ok(());
     };
+    let anchor = app
+        .try_state::<RuntimeState>()
+        .map(|runtime| {
+            runtime
+                .panel_tray
+                .lock()
+                .expect("panel tray anchor")
+                .clone()
+        })
+        .unwrap_or_else(|| "main-tray".into());
     let rect = app
-        .tray_by_id("main-tray")
+        .tray_by_id(&anchor)
         .and_then(|tray| tray.rect().ok().flatten());
+    #[cfg(windows)]
+    let rect = rect.or_else(|| {
+        [ProviderId::Claude, ProviderId::Codex]
+            .into_iter()
+            .filter_map(|id| app.tray_by_id(windows_tray::tray_id(id)))
+            .find_map(|tray| tray.rect().ok().flatten())
+    });
     if let Some(rect) = rect {
         // Tray rectangles returned by Tauri are physical; conversion is a no-op for them.
         let point = rect.position.to_physical::<f64>(1.0);
@@ -494,6 +550,38 @@ fn finish_panel_click(app: &AppHandle) -> tauri::Result<()> {
 }
 
 fn left_click_on_tray(app: &AppHandle) -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::{
+            Foundation::POINT,
+            UI::{
+                Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON},
+                WindowsAndMessaging::GetCursorPos,
+            },
+        };
+        let mut point = POINT { x: 0, y: 0 };
+        // Both native cursor positions and Tauri tray rectangles are physical pixels.
+        if unsafe { GetAsyncKeyState(i32::from(VK_LBUTTON)) } < 0
+            && unsafe { GetCursorPos(&mut point) } != 0
+        {
+            for id in [ProviderId::Claude, ProviderId::Codex] {
+                if let Some(rect) = app
+                    .tray_by_id(windows_tray::tray_id(id))
+                    .and_then(|tray| tray.rect().ok().flatten())
+                {
+                    let origin = rect.position.to_physical::<f64>(1.0);
+                    let size = rect.size.to_physical::<f64>(1.0);
+                    if f64::from(point.x) >= origin.x
+                        && f64::from(point.x) < origin.x + size.width
+                        && f64::from(point.y) >= origin.y
+                        && f64::from(point.y) < origin.y + size.height
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
     #[cfg(target_os = "macos")]
     if objc2_app_kit::NSEvent::pressedMouseButtons() & 1 != 0 {
         if let Some(tray) = app.tray_by_id("main-tray") {
@@ -520,11 +608,12 @@ fn left_click_on_tray(app: &AppHandle) -> bool {
                 .unwrap_or(false);
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", windows)))]
     let _ = app;
     false
 }
 
+#[cfg(not(windows))]
 fn tray_image() -> Image<'static> {
     // Retina alpha-mask; macOS applies its own tint in light and dark menu bars.
     #[cfg(target_os = "macos")]
@@ -548,9 +637,13 @@ fn startup_state(settings: Settings) -> AppState {
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Err(error) = show_panel(app) {
-                eprintln!("Could not show panel: {error}");
-            }
+            // Return from the Windows activation message before touching the webview.
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                if let Err(error) = show_panel(&handle) {
+                    eprintln!("Could not show panel: {error}");
+                }
+            });
         }))
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -641,6 +734,18 @@ pub fn run() {
                     status,
                 },
                 panel_click: Mutex::new(None),
+                panel_tray: Mutex::new({
+                    #[cfg(windows)]
+                    {
+                        windows_tray::tray_id(ProviderId::Claude).into()
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        "main-tray".into()
+                    }
+                }),
+                #[cfg(windows)]
+                windows_icons: Mutex::new([None, None]),
                 #[cfg(windows)]
                 settings_transition: tauri::async_runtime::Mutex::new(()),
                 exit: ExitGate::default(),
@@ -659,72 +764,102 @@ pub fn run() {
                     .lock()
                     .expect("shutdown signals") = Some(signals);
             }
-            TrayIconBuilder::with_id("main-tray")
-                .icon(tray_image())
-                .icon_as_template(true)
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "open" => {
-                        if let Err(e) = show_panel(app) {
-                            eprintln!("Panel error: {e}");
-                        }
+            // One menu handler serves both Windows icons; actions must fire only once.
+            app.on_menu_event(|app, event| match event.id.as_ref() {
+                "open" => {
+                    if let Err(e) = show_panel(app) {
+                        eprintln!("Panel error: {e}");
                     }
-                    "claude" | "codex" | "cancel" => {
-                        let coordinator = app.state::<RuntimeState>().coordinator.clone();
-                        let action = event.id.as_ref().to_owned();
-                        tauri::async_runtime::spawn(async move {
-                            let result = match action.as_str() {
-                                "cancel" => coordinator.cancel_read().await,
-                                "claude"
-                                    if coordinator.snapshot().providers.iter().any(|p| {
-                                        p.id == ProviderId::Claude
-                                            && p.status == ProviderStatus::SignedOut
-                                    }) =>
-                                {
-                                    coordinator.sign_in_claude().await
+                }
+                "claude" | "codex" | "cancel" => {
+                    let coordinator = app.state::<RuntimeState>().coordinator.clone();
+                    let action = event.id.as_ref().to_owned();
+                    tauri::async_runtime::spawn(async move {
+                        let result = match action.as_str() {
+                            "cancel" => coordinator.cancel_read().await,
+                            "claude"
+                                if coordinator.snapshot().providers.iter().any(|p| {
+                                    p.id == ProviderId::Claude
+                                        && p.status == ProviderStatus::SignedOut
+                                }) =>
+                            {
+                                coordinator.sign_in_claude().await
+                            }
+                            "claude" => coordinator.read_quota(ProviderId::Claude).await,
+                            _ => coordinator.read_quota(ProviderId::Codex).await,
+                        };
+                        if result.is_err() {
+                            eprintln!("Manual action unavailable.");
+                        }
+                    });
+                }
+                "quit" => app.exit(0),
+                _ => {}
+            });
+            #[cfg(windows)]
+            let tray_ids = [
+                windows_tray::tray_id(ProviderId::Claude),
+                windows_tray::tray_id(ProviderId::Codex),
+            ];
+            #[cfg(not(windows))]
+            let tray_ids = ["main-tray"];
+            for tray_id in tray_ids {
+                #[cfg(windows)]
+                let image = {
+                    let id = if tray_id == windows_tray::tray_id(ProviderId::Claude) {
+                        ProviderId::Claude
+                    } else {
+                        ProviderId::Codex
+                    };
+                    Image::new_owned(
+                        windows_tray::Indicator::new(&coordinator.snapshot(), id, now_ms())
+                            .render(windows_tray::ICON_SIZE),
+                        windows_tray::ICON_SIZE,
+                        windows_tray::ICON_SIZE,
+                    )
+                };
+                #[cfg(not(windows))]
+                let image = tray_image();
+                TrayIconBuilder::with_id(tray_id)
+                    .icon(image)
+                    .icon_as_template(cfg!(target_os = "macos"))
+                    .menu(&menu)
+                    .show_menu_on_left_click(false)
+                    .on_tray_icon_event(|tray, event| {
+                        let app = tray.app_handle();
+                        match event {
+                            TrayIconEvent::Click {
+                                button: MouseButton::Left,
+                                button_state: MouseButtonState::Down,
+                                ..
+                            } => {
+                                *app.state::<RuntimeState>()
+                                    .panel_tray
+                                    .lock()
+                                    .expect("panel tray anchor") = tray.id().as_ref().to_owned();
+                                let visible = app
+                                    .get_webview_window("main")
+                                    .and_then(|window| window.is_visible().ok())
+                                    .unwrap_or(false);
+                                *app.state::<RuntimeState>()
+                                    .panel_click
+                                    .lock()
+                                    .expect("panel click") = Some(visible);
+                            }
+                            TrayIconEvent::Click {
+                                button: MouseButton::Left,
+                                button_state: MouseButtonState::Up,
+                                ..
+                            } => {
+                                if let Err(e) = finish_panel_click(app) {
+                                    eprintln!("Panel error: {e}");
                                 }
-                                "claude" => coordinator.read_quota(ProviderId::Claude).await,
-                                _ => coordinator.read_quota(ProviderId::Codex).await,
-                            };
-                            if result.is_err() {
-                                eprintln!("Manual action unavailable.");
                             }
-                        });
-                    }
-                    "quit" => app.exit(0),
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    let app = tray.app_handle();
-                    match event {
-                        TrayIconEvent::Click {
-                            button: MouseButton::Left,
-                            button_state: MouseButtonState::Down,
-                            ..
-                        } => {
-                            let visible = app
-                                .get_webview_window("main")
-                                .and_then(|window| window.is_visible().ok())
-                                .unwrap_or(false);
-                            *app.state::<RuntimeState>()
-                                .panel_click
-                                .lock()
-                                .expect("panel click") = Some(visible);
+                            _ => {}
                         }
-                        TrayIconEvent::Click {
-                            button: MouseButton::Left,
-                            button_state: MouseButtonState::Up,
-                            ..
-                        } => {
-                            if let Err(e) = finish_panel_click(app) {
-                                eprintln!("Panel error: {e}");
-                            }
-                        }
-                        _ => {}
-                    }
-                })
-                .build(app)?;
+                    })
+                    .build(app)?;
+            }
             update_tray(app.handle()).map_err(std::io::Error::other)?;
 
             // One owned ticker serves hidden-panel refresh and menu-bar expiry.
