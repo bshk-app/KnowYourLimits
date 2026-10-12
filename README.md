@@ -8,7 +8,7 @@
 
 See your remaining coding quota in the macOS menu bar or Windows tray, with usage and reset times one click away.
 
-macOS 13+ · Apple Silicon &nbsp; | &nbsp; Windows 10/11 · x64 &nbsp; | &nbsp; Source version **0.2.7** <!-- x-release-please-version -->
+macOS 13+ · Apple Silicon &nbsp; | &nbsp; Windows 10/11 · x64 &nbsp; | &nbsp; Source version **0.2.8** <!-- x-release-please-version -->
 
 [Quick tour](#quick-tour) · [Installation](#installation) · [First use](#first-use) · [User guide](docs/usage.md) · [Development](docs/development.md)
 
