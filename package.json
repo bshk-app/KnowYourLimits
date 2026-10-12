@@ -17,6 +17,7 @@
     "tauri": "tauri",
     "icons": "tauri icon assets/icons/app.svg && tauri icon assets/icons/tray.svg -o src-tauri/icons/tray -p 44",
     "package:macos": "bun scripts/package-macos.mjs",
+    "package:macos:ci": "bun scripts/package-macos-ci.mjs",
     "package:windows": "bun scripts/package-windows.mjs",
     "release:github": "bun scripts/release-github.mjs"
   },

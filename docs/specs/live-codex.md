@@ -11,13 +11,13 @@ the single-flight/consent/cleanup contract remains unchanged. See
 ## Behavior
 
 - Native startup remains **demo**, no discovery/execution of Codex at startup.
-- Explicit **Подключить Codex** action discloses CLI-owned auth/network/cache
+- Explicit **Connect Codex** action discloses CLI-owned auth/network/cache
   side effects and requests one read-only account/rateLimits/read. No inference.
 - Global `mode: demo | live`, **session-only**, not persisted. Counter/threshold
   settings keep their existing persistence. No auto polling, retries, login UI,
   notifications, autostart, Claude reader, executable-picker or shell commands.
 - Enter live clears ALL demo snapshots before starting the read. Claude stays
-  unavailable with empty windows and no timestamp; its UI says «Не подключён».
+  unavailable with empty windows and no timestamp; its UI says “Not connected”.
 - Live refresh preserves only a previous live Codex snapshot as historical;
   it never renews its timestamp. While refreshing, its status is not Current.
   Error/no quota/expired/permission=false → no current percentage, never fake zero.

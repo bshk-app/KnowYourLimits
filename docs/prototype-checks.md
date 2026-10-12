@@ -1,45 +1,50 @@
-# Проверка прототипа P0
+# P0 prototype verification
 
-## Выполнено
+## Completed
 
-- `bun run test`: **34 unit tests** (модель квот и preview settings bridge).
-- `cargo test`: **13 tests** (native модель, camelCase DTO и atomic settings storage).
-- `bun run test:e2e`: **6 Chromium tests** — оба провайдера, минимальный остаток,
-  critical/stale/error/unavailable, сохранение после reload, draft/focus при таймерах,
-  истечение свежести, validation, phone/dark layout и отсутствие внешних account requests.
-- TypeScript strict check, Biome check, cargo fmt и clippy `-D warnings`: прошли.
-- Vite production build: прошёл; JS ~18 KB, CSS ~8 KB до gzip (не размер приложения).
-- Tauri debug bundle: `src-tauri/target/debug/bundle/macos/KnowYourLimits.app`, ~25.31 MiB.
-  Это debug `.app`, не оптимизированный release и не notarized public distribution.
-- Финальный packaged app запущен: finishedLaunching, ActivationPolicy::Accessory,
-  один процесс. Smoke-test процесс остановлен после проверки.
-- Повторный launch в smoke предыдущей сборки оставлял один экземпляр после завершения
-  инициализации; моментальный probe мог наблюдать второй краткоживущий процесс.
-- Preview сервер на 4173: HTTP 200 локально и с Host удалённой BB share-ссылки.
+- `bun run test`: **34 unit tests** for the quota model and preview settings bridge.
+- `cargo test`: **13 tests** for the native model, camel-case DTOs, and atomic settings storage.
+- `bun run test:e2e`: **6 Chromium tests** covering both providers, minimum remaining
+  quota, critical/stale/error/unavailable states, persistence after reload, drafts
+  and focus during timers, freshness expiration, validation, phone/dark layouts,
+  and absence of external account requests.
+- Strict TypeScript, Biome, cargo fmt, and clippy `-D warnings` passed.
+- Vite production build passed: approximately 18 KB JavaScript and 8 KB CSS before
+  gzip, not the application size.
+- Tauri debug bundle: `src-tauri/target/debug/bundle/macos/KnowYourLimits.app`,
+  approximately 25.31 MiB. This is a debug `.app`, not an optimized release or
+  notarized public distribution.
+- The final packaged app launched: finishedLaunching, ActivationPolicy::Accessory,
+  one process. The smoke-test process was stopped afterward.
+- Launching the previous smoke build twice left one instance after initialization;
+  an immediate probe could observe a second short-lived process.
+- Preview server on port 4173 returned HTTP 200 locally and with the remote BB share URL's Host.
 
-## Ревью и намеренное уточнение поведения
+## Review and deliberate behavior revision
 
-Независимое ревью выявило race у visibility-based toggle: macOS focus loss может скрыть
-панель до tray mouse-up, после чего callback ошибочно открывает её снова.
-P0 намеренно упрощён: **левый клик всегда открывает панель**, без toggle;
-Escape / потеря фокуса / закрытие скрывают её. Изменение записано как REVISED в
-[спецификации](specs/prototype.md). Повторная проверка reviewer не нашла ошибки
-в этом минимальном изменении. Это не доказательство отсутствия всех багов.
+Independent review found a race in visibility-based toggling: macOS focus loss can
+hide the panel before tray mouse-up, causing the callback to reopen it incorrectly.
+P0 was deliberately simplified: **left click always opens the panel**, without
+toggling; Escape, loss of focus, and closing hide it. The change is marked REVISED
+in [the specification](specs/prototype.md). The follow-up review found no defect in
+this minimal change; it does not prove that all bugs are absent.
 
-## Что не проверено полностью
+## Incomplete verification
 
-- Физические клики по native tray, визуальная фокусировка, clipboard, multi-monitor/DPI
-  и границы панели требуют ручной macOS QA. Браузерные tests не заменяют её.
-- Screen Recording permission отсутствует; native screenshots не снимались, разрешения
-  не запрашивались и не менялись. Browser screenshot: `artifacts/prototype-dark.png`.
-- Настройки native storage проверены unit tests; реальные WebView IPC/actions в packaged
-  `.app` пока не проверены end-to-end.
-- Notifications/autostart, real CLI adapters, live polling и restart-safe alert dedup
-  НЕ реализованы. Все проценты вымышлены, app/tray/UI обозначены DEMO.
-- macOS 13 — configured minimum, не утверждение о тестировании на всех версиях macOS.
+- Physical native tray clicks, visual focus, clipboard, multiple monitors/DPI,
+  and panel boundaries require manual macOS QA. Browser tests do not replace it.
+- Screen Recording permission was absent. Native screenshots were not captured,
+  and permissions were neither requested nor changed. Browser screenshot:
+  `artifacts/prototype-dark.png`.
+- Native storage settings were tested with unit tests; real WebView IPC/actions
+  in the packaged `.app` have not been verified end to end.
+- Notifications, automatic startup, real CLI adapters, live polling, and alert
+  deduplication across restarts are not implemented. All percentages are fictional,
+  and the application, tray, and UI are labeled DEMO.
+- macOS 13 is the configured minimum, not a claim of testing every macOS version.
 
-## Просмотр
+## Preview
 
-Для локальной проверки preview запускается командой `bun run preview`.
-Сервер — background task `kyl-prototype-preview`; прекращение/перезагрузка сессии может
-остановить его. Для повторного запуска используйте `bun run build && bun run preview`.
+Run `bun run preview` for local preview. The server is the background task
+`kyl-prototype-preview`; ending or restarting the session may stop it.
+Run `bun run build && bun run preview` to start it again.

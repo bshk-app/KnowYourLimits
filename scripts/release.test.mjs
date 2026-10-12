@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { after, test } from 'node:test';
+import { publishRelease } from './publish-release.mjs';
 import {
   assertReleaseTag,
   notaryOptions,
   readReleaseInfo,
   root,
+  verifyMacOSManifest,
   verifyManifest,
   verifyWindowsManifest,
 } from './release-common.mjs';
@@ -180,8 +182,8 @@ test('dry-run prepares a draft without credentials, Git or network access', () =
   assert.equal(command.at(-1), '<clean HEAD>');
 });
 
-function windowsFixture() {
-  const { info } = fixture();
+function windowsFixture(source = fixture()) {
+  const { info } = source;
   mkdirSync(info.windowsOutput, { recursive: true });
   const files = [
     `${info.name}-${info.version}-windows-x64.exe`,
@@ -259,5 +261,153 @@ test('Windows release rejects extra, missing, duplicate and escaping assets', ()
     mutate(manifest.files);
     saveManifest();
     assert.throws(() => verifyWindowsManifest(info), /exactly the installer/);
+  }
+});
+
+function macosFixture(source = fixture()) {
+  const { info, manifest, saveManifest } = source;
+  Object.assign(manifest, {
+    version: info.version,
+    platform: 'macos',
+    arch: 'arm64',
+    signed: true,
+    sourceCommit: 'a'.repeat(40),
+    sourceDirty: false,
+    artifact: `${info.name}-${info.version}-macos-arm64.dmg`,
+  });
+  const bytes = Buffer.from('test DMG bytes');
+  manifest.sizeBytes = bytes.length;
+  writeFileSync(join(info.output, manifest.artifact), bytes);
+  saveManifest();
+  return source;
+}
+
+test('macOS release validates the signed DMG and its source commit', () => {
+  const { info, manifest } = macosFixture();
+  const verified = verifyMacOSManifest(info);
+  assert.equal(verified.manifest.sourceCommit, manifest.sourceCommit);
+  writeFileSync(verified.artifact, 'a replaced DMG');
+  assert.throws(() => verifyMacOSManifest(info), /SHA-256/);
+});
+
+test('macOS release rejects unsigned, dirty, untraceable and mismatched builds', () => {
+  for (const [key, value] of [
+    ['version', '1.2.2'],
+    ['platform', 'windows'],
+    ['arch', 'x64'],
+    ['signed', false],
+    ['sourceDirty', true],
+    ['sourceCommit', undefined],
+    ['sourceCommit', 'not-a-commit'],
+    ['sizeBytes', 0],
+  ]) {
+    const { info, manifest, saveManifest } = macosFixture();
+    manifest[key] = value;
+    saveManifest();
+    assert.throws(() => verifyMacOSManifest(info), /signed ARM64 build|artifact size/);
+  }
+});
+
+test('macOS release rejects an unexpected DMG filename even with a valid checksum', () => {
+  const { info, manifest, saveManifest } = macosFixture();
+  manifest.artifact = 'different.dmg';
+  writeFileSync(join(info.output, manifest.artifact), 'test DMG bytes');
+  saveManifest();
+  assert.throws(() => verifyMacOSManifest(info), /expected versioned DMG filename/);
+});
+
+function publicationFixture(options = {}) {
+  const source = fixture();
+  const windows = windowsFixture(source);
+  const macos = macosFixture(source);
+  const calls = [];
+  let release = options.existing;
+  const directory = mkdtempSync(join(scratch, 'publication-'));
+  const input = {
+    info: windows.info,
+    tag: 'v1.2.3',
+    commit: 'a'.repeat(40),
+    repository: 'example/KnowYourLimits',
+    directory,
+    gh(...args) {
+      calls.push(args);
+      if (args[0] === 'api') return JSON.stringify({ sha: options.remoteCommit || input.commit });
+      switch (args[1]) {
+        case 'view':
+          if (!release)
+            throw Object.assign(new Error('Not found'), { stderr: 'release not found' });
+          return JSON.stringify(release);
+        case 'create':
+          release = { isDraft: true, assets: [] };
+          break;
+        case 'upload':
+          if (options.uploadFails) throw new Error('Upload failed');
+          release.assets = args.slice(3, args.indexOf('--repo')).map((file) => ({
+            name: basename(file),
+            state: 'uploaded',
+          }));
+          if (options.incomplete) release.assets.pop();
+          break;
+        case 'edit':
+          if (args.includes('--draft=false')) release.isDraft = false;
+          break;
+        default:
+          throw new Error(`Unexpected command: ${args.join(' ')}`);
+      }
+      return '';
+    },
+  };
+  return { input, calls, windows, macos, getRelease: () => release };
+}
+
+test('publication uploads both platforms and checksums before making the release public', () => {
+  const { input, calls, getRelease } = publicationFixture();
+  publishRelease(input);
+  assert.equal(getRelease().isDraft, false);
+  assert.equal(getRelease().assets.length, 6);
+  const checksums = readFileSync(join(input.directory, 'SHA256SUMS.txt'), 'utf8');
+  assert.equal(checksums.trim().split('\n').length, 3);
+  assert.match(checksums, /Example-1\.2\.3-macos-arm64\.dmg/);
+  const notes = readFileSync(join(input.directory, 'release-notes.md'), 'utf8');
+  assert.match(notes, /Windows installer/);
+  assert.match(notes, /macOS 13\.0\+ on Apple Silicon/);
+  assert.ok(calls.find((args) => args[1] === 'create').includes('--draft'));
+  assert.ok(calls.at(-1).includes('--draft=false'));
+});
+
+test('publication leaves failed or incomplete uploads as a draft', () => {
+  for (const options of [{ incomplete: true }, { uploadFails: true }]) {
+    const { input, calls, getRelease } = publicationFixture(options);
+    assert.throws(() => publishRelease(input), /incomplete|Upload failed/);
+    assert.equal(getRelease().isDraft, true);
+    assert.ok(!calls.some((args) => args.includes('--draft=false')));
+  }
+});
+
+test('publication can resume a draft but refuses to overwrite a public release', () => {
+  const draft = publicationFixture({ existing: { isDraft: true, assets: [] } });
+  publishRelease(draft.input);
+  assert.equal(draft.getRelease().isDraft, false);
+  assert.ok(!draft.calls.some((args) => args[1] === 'create'));
+  const published = publicationFixture({ existing: { isDraft: false, assets: [] } });
+  assert.throws(() => publishRelease(published.input), /already published/);
+  assert.ok(!published.calls.some((args) => ['edit', 'upload'].includes(args[1])));
+});
+
+test('publication refuses to mix artifacts from another commit or a moved remote tag', () => {
+  const remote = publicationFixture({ remoteCommit: 'b'.repeat(40) });
+  assert.throws(() => publishRelease(remote.input), /both platform builds must match/);
+  for (const platform of ['windows', 'macos']) {
+    const source = publicationFixture();
+    source[platform].manifest.sourceCommit = 'b'.repeat(40);
+    if (platform === 'windows') source.windows.saveManifest();
+    else {
+      writeFileSync(
+        join(source.input.info.output, 'manifest.json'),
+        JSON.stringify(source.macos.manifest),
+      );
+    }
+    assert.throws(() => publishRelease(source.input), /both platform builds must match/);
+    assert.ok(!source.calls.some((args) => args[0] === 'release'));
   }
 });

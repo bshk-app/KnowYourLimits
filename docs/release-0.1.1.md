@@ -16,7 +16,7 @@
 
 The shipped capability had no permissions. `@tauri-apps/api/event.listen` invokes
 `plugin:event|listen`, so the real Tauri authority denied the command and the UI
-reported: «Обновления панели недоступны. Состояние можно прочитать при открытии панели».
+reported: “Panel updates are unavailable. State can be read when opening the panel”.
 The browser native mocks accepted this command and did not exercise that authority.
 
 Added only `core:event:allow-listen` and `core:event:allow-unlisten` for main.

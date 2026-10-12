@@ -1,101 +1,99 @@
-# 0.1.2: Claude и удаление демо
+# 0.1.2: Claude integration and demo removal
 
-Проблема: в 0.1.1 можно было подключить только Codex. Claude всегда показывал
-«Не подключён», а панель предлагала возврат к вымышленным данным.
+Problem: version 0.1.1 could connect only Codex. Claude always showed Not connected,
+and the panel offered a return to fictional data.
 
-Теперь обе карточки предлагают собственное подключение и обновление.
-В модели отсутствуют Mode, Scenario и генераторы демоснимков; удалён bundled
-`src/fixtures/demo.json`. Демо удалено из IPC, меню иконки, браузерного интерфейса,
-CSS и начального HTML. Синтетические данные используются только в тестах.
+Both cards now offer their own connection and refresh actions. Mode, Scenario, and
+demo snapshot generators are absent from the model; bundled `src/fixtures/demo.json`
+was removed. Demo behavior was removed from IPC, the tray menu, browser UI, CSS,
+and initial HTML. Synthetic data is used only in tests.
 
-Состояние хранит список подключённых провайдеров и конкретный провайдер,
-который сейчас обновляется. Чтение Claude сохраняет снимок Codex и наоборот.
-Coordinator допускает один активный процесс, объединяет повторные одинаковые
-действия, ожидает cleanup предыдущей задачи, сохраняет изменения настроек и
-отсекает поздние результаты после отмены/выхода.
+State tracks connected providers and the specific provider being refreshed.
+Claude readings preserve Codex snapshots and vice versa. The coordinator permits
+one active process, coalesces repeated identical actions, awaits cleanup of the
+previous job, preserves settings changes, and rejects late results after cancellation/exit.
 
 ## Claude
 
-Проверка использует тот же официальный CLI 2.1.296 и структурированный `/usage`,
-который ранее находился только в standalone spike. Перед чтением выполняется
-`claude auth status --json`; identity и сырые diagnostics не входят в DTO.
+Readings use the same official CLI 2.1.296 and structured `/usage` previously used
+only in the standalone spike. `claude auth status --json` runs before a reading;
+identity and raw diagnostics do not enter DTOs.
 
-При первом чтении CLI сообщил `loggedIn:false`, `authMethod:none`;
-позже тот же официальный auth status сообщил выполненный вход с подпиской.
-Старая проверка `/usage` молча возвращала пустой снимок. Теперь отсутствие входа
-даёт `signedout` и кнопку **«Войти в Claude»**.
+The first reading reported `loggedIn:false`, `authMethod:none`; later the same
+official auth status reported a signed-in subscription. The old `/usage` check
+silently returned an empty snapshot. Missing authorization now produces `signedout`
+and a **Sign in to Claude** button.
 
-Вход запускается только отдельным явным действием пользователя:
-`claude auth login --claudeai`. Официальный CLI открывает браузер, проводит OAuth
-и сохраняет авторизацию. Приложение отбрасывает вывод и принимает только
-статическое сообщение успешного входа; затем повторно проверяет auth status
-и читает квоту. Никакие credential-файлы приложение не открывает.
-Вход ограничен 180 секундами и может быть отменён из панели или меню.
-Отмена и выход ожидают завершения owned process group.
+Sign-in starts only through a separate explicit user action:
+`claude auth login --claudeai`. The official CLI opens the browser, performs OAuth,
+and saves authorization. The application discards output and accepts only a
+static success message, then rechecks auth status and reads quota. Application
+code never opens credential files. Sign-in is bounded to 180 seconds and can be
+canceled from the panel or menu. Cancellation and exit await owned group termination.
 
-Окна Claude: global `session` / `weekly_all`, без token estimates, PTY, inference
-или чтения текстовых процентов при отсутствии machine report. Источник может
-вернуть пустые structured limits; это отображается как недоступная квота.
-Пустой ответ источника по-прежнему не превращается в вымышленные проценты.
-Browser sign-in покрыт синтетическими CLI/IPC тестами; реальный пользовательский
-вход в браузере агентом не выполнялся.
+Claude windows are global `session` / `weekly_all`, without token estimates, PTY,
+inference, or text percentages when a machine report is absent. The source can
+return empty structured limits, shown as unavailable quota. Empty responses still
+do not become fictional percentages. Browser sign-in is covered by synthetic
+CLI/IPC tests; the agent did not perform real user sign-in in a browser.
 
-### Исправление пустого cold read
+### Empty cold-reading fix
 
-Найдена причина source gap прежнего spike: в локальном Claude Code 2.1.296
-`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` убирает structured `limits` из cold
-`/usage`. Дифференциальная проверка одной переменной показала:
+A cause of the earlier spike's source gap was found: in local Claude Code 2.1.296,
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` removes structured `limits` from cold
+`/usage`. A differential check of one variable showed:
 
-- флаг включён → один quota GET, без cache answer, успешный result, но нет окон;
-- флаг отсутствует → один quota GET, без cache answer, global session/weekly окна;
-- в обоих случаях нулевые turns, API duration, стоимость и model tokens.
+- Flag enabled: one quota GET, no cache answer, successful result, but no windows.
+- Flag absent: one quota GET, no cache answer, global session/weekly windows.
+- Both cases had zero turns, API duration, cost, and model tokens.
 
-Убирается только umbrella flag в окружении дочернего CLI, включая возможное
-наследование из parent. Telemetry, error reporting, updates, background tasks,
-memory, hooks, MCP и tools продолжают отключаться по отдельности.
-Глобальное окружение не изменяется. Regression проверяет реальный subprocess
-launch и сначала падал (`Command`), затем проходит после исправления.
-Это наблюдение pinned CLI, а не утверждение о других версиях.
+Only the umbrella flag is removed from the child environment, including possible
+inheritance from the parent. Telemetry, error reporting, updates, background tasks,
+memory, hooks, MCP, and tools remain individually disabled. Global environment is
+unchanged. The regression checks a real subprocess launch and first failed
+(`Command`), then passed after the fix. This is an observation of the pinned CLI,
+not a claim about other versions.
 
-## Проверки
+## Verification
 
-- Исходный UI repro: `bun run test:e2e tests/native.spec.ts -g 'Claude can be connected'`
-  сначала упал из-за отсутствующей кнопки; после исправления проходит.
+- Initial UI reproduction:
+  `bun run test:e2e tests/native.spec.ts -g 'Claude can be connected'`
+  first failed because the button was absent, then passed after the fix.
 - 84 Rust library + 2 example + 41 TypeScript + 10 Playwright cases.
-- Проверены реальный production resolver → managed Claude reader на синтетическом
-  CLI, auth failures, официальный login dispatch, cleanup всех стадий,
-  связь двух счётчиков, single-flight, ошибки/expired quota и поздние события.
-- Реальный Codex smoke через production coordinator вернул текущую недельную квоту.
-  Реальный Claude был проверен на пустом ответе, затем на настоящих session/weekly
-  окнах после исправления окружения. Точные итоговые проверки дописываются ниже.
-- Default tests не выполняют сетевую авторизацию. Browser тесты используют mock IPC;
-  физическая проверка packaged WebView отмечается отдельно после сборки.
+- Coverage includes the production resolver → managed Claude reader with a
+  synthetic CLI, auth failures, official login dispatch, cleanup at every stage,
+  linked counters, single-flight execution, errors/expired quota, and late events.
+- Real Codex smoke through the production coordinator returned current weekly
+  quota. Real Claude was tested with an empty response and then real session/weekly
+  windows after the environment fix. Final verification details follow below.
+- Default tests do not perform network authorization. Browser tests use mock IPC;
+  physical packaged WebView verification is recorded separately after building.
 
-## Сборка
+## Build
 
-Версия обновлена до 0.1.2 в frontend, Cargo/lock и Tauri.
-`bun run package:macos` использует тот же Zamok workflow, Developer ID
-Aleksandr Beshkenadze (Q8H6GWJ658) и Keychain-профиль `notarize`.
-Credentials не извлекаются. Публикация продукта на Zamok/GitHub не выполняется.
-Артефакт: `artifacts/macos/0.1.2/KnowYourLimits-0.1.2.dmg`.
-Финальный DMG: 3 395 199 байт, SHA-256
+Version updated to 0.1.2 in frontend, Cargo/lock, and Tauri metadata.
+`bun run package:macos` uses the same Zamok workflow, Developer ID
+Aleksandr Beshkenadze (Q8H6GWJ658), and `notarize` Keychain profile.
+Credentials are not extracted. No product publication to Zamok/GitHub is performed.
+Artifact: `artifacts/macos/0.1.2/KnowYourLimits-0.1.2.dmg`.
+Final DMG: 3 395 199 bytes, SHA-256
 `3b8d6ebf961e27abf6d3517e5de01db793affa2ff70dd1bde9b490c62e3a2e5a`.
-Apple notarization и stapling подтверждены. Gatekeeper принимает DMG и приложение
-внутри смонтированного read-only consumer DMG; codesign --deep --strict проходит.
+Apple notarization and stapling were confirmed. Gatekeeper accepts the DMG and
+the app inside the mounted read-only consumer DMG; codesign --deep --strict passes.
 
-Исправленный production coordinator с минимальным PATH получил настоящие
-session/weekly окна Claude без предварительного запуска диагностического probe.
-Codex также вернул текущую недельную квоту. В дифференциальном CLI probe
-подтверждён GET без cache answer и нулевые inference counters.
+The fixed production coordinator with minimal PATH obtained real Claude
+session/weekly windows without a prior diagnostic probe. Codex also returned
+current weekly quota. The differential CLI probe confirmed a GET without a cache
+answer and zero inference counters.
 
-Финальная версия установлена в `/Applications/KnowYourLimits.app`.
-Старая версия корректно завершена SIGTERM, сохранена резервная копия:
+The final version was installed at `/Applications/KnowYourLimits.app`.
+The previous version exited correctly through SIGTERM and was backed up at:
 `~/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.1.2-1791656658488.app`.
-У установленного bundle проверены версия 0.1.2 и строгая подпись; процесс запущен.
-Computer Use при попытке захвата панели вернул timeoutReached, поэтому физический
-клик подключения/входа и packaged WebView визуально не подтверждены. Проверки
-реального ACL, production coordinator и UI с mock IPC проходят.
+The installed bundle's version 0.1.2 and strict signature were verified; its
+process was started. Computer Use returned timeoutReached when capturing the
+panel, so physical connection/sign-in clicks and packaged WebView appearance
+were not confirmed. Actual ACL, production coordinator, and mock IPC UI checks pass.
 
-Финальный download server: порт 55999, сессия 96594. Старые ссылки 0.1.0/0.1.1
-перенаправляются на финальную 0.1.2. Промежуточный artifact до исправления cold read
-сохранён отдельно в `artifacts/macos/0.1.2-before-cold-read-fix` и не раздаётся.
+Final download server: port 55999, session 96594. Old 0.1.0/0.1.1 links redirect to
+final 0.1.2. The intermediate artifact before the cold-reading fix is retained
+separately at `artifacts/macos/0.1.2-before-cold-read-fix` and is not distributed.

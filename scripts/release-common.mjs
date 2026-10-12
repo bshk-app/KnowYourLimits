@@ -126,5 +126,27 @@ export function verifyManifest(info) {
   if (digest !== manifest.sha256?.toLowerCase()) {
     throw new Error('DMG SHA-256 does not match manifest.json. Re-run package:macos.');
   }
-  return { path: manifestPath, artifact: join(info.output, manifest.artifact) };
+  return { manifest, path: manifestPath, artifact: join(info.output, manifest.artifact) };
+}
+
+export function verifyMacOSManifest(info) {
+  const verified = verifyManifest(info);
+  const { manifest } = verified;
+  if (
+    manifest.version !== info.version ||
+    manifest.platform !== 'macos' ||
+    manifest.arch !== 'arm64' ||
+    manifest.signed !== true ||
+    !/^[a-f0-9]{40}$/.test(manifest.sourceCommit || '') ||
+    manifest.sourceDirty !== false
+  ) {
+    throw new Error('macOS manifest must describe a signed ARM64 build from a clean commit.');
+  }
+  if (manifest.artifact !== `${info.name}-${info.version}-macos-arm64.dmg`) {
+    throw new Error('macOS manifest must contain the expected versioned DMG filename.');
+  }
+  if (manifest.sizeBytes !== readFileSync(verified.artifact).length) {
+    throw new Error('macOS artifact size does not match manifest.json.');
+  }
+  return verified;
 }

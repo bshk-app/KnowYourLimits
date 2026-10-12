@@ -1,58 +1,58 @@
-# 0.2.3 — применение интервала автообновления
+# 0.2.3 — applying automatic refresh intervals
 
-Пользователь выбрал15мин, но оба провайдера показывали «Ручное обновление»
-и снимки старше4ч. App-owned settings.json подтверждал refreshMinutes=0 у обоих.
-Причина: выбор в select менял только draft до отдельного submit кнопкой
-«Сохранить», расположенной ниже остальных настроек.
+The user selected 15 minutes, but both providers displayed Manual refresh and
+snapshots older than four hours. App-owned settings.json confirmed refreshMinutes=0
+for both. Selecting an interval changed only the draft until a separate Save
+submission below the other settings.
 
-Regression сначала RED: выбор15мин без submit оставлял schedule-status
-«Ручное обновление». Теперь change select сразу сохраняет и применяет интервал.
-Карточка показывает действующую настройку, её значение переживает закрытие
-настроек и перезапуск. Ошибка записи возвращает select к действующему значению
-и выводит сообщение рядом с полем и в панели.
+The regression initially failed: selecting 15 minutes without submitting left
+schedule-status at Manual refresh. Selection changes now save and apply the
+interval immediately. Cards show the active setting, which survives settings
+closure and restart. Write failures restore the active selection and show a
+message beside the field and in the panel.
 
-Новый native command set_refresh_minutes атомарно изменяет только timer выбранного
-провайдера, сохраняя остальные применённые настройки. Другие несохранённые
-поля UI не применяются, permission уведомлений не запрашивается из timer change.
-Пока запрос сохранения выполняется, оба select timer недоступны.
-save_settings и partial update используют общий locked commit/persistence путь.
-Дедупликация уведомлений не сбрасывается изменением timer.
+The new native command set_refresh_minutes atomically updates only the selected
+provider's timer, preserving other applied settings. Other unsaved UI fields are
+not applied, and timer changes do not request notification permission. Both timer
+selectors are disabled while saving. save_settings and partial updates share a
+locked commit/persistence path. Timer changes do not reset notification deduplication.
 
-Backend tests проверяют15мин до/после deadline, запуск после восстановления,
-независимость preferences, invalid values и rollback при ошибке записи.
-UI tests проверяют выбор без Save/close/reopen, несохранённые notification/size
-drafts, save error rollback и отсутствие raw diagnostics.
+Backend tests cover 15 minutes before/after deadlines, startup after restoration,
+independent preferences, invalid values, and rollback on write errors. UI tests
+cover selection without Save/close/reopen, unsaved notification/size drafts,
+save-error rollback, and absence of raw diagnostics.
 
-## Результат проверки и установка
+## Verification and installation
 
-183 cases:116Rust library +2examples +47TS +18Playwright. fmt, Clippy-Dwarnings,
-typecheck, Biome и production build пройдены. Regression выбора15мин RED→GREEN.
+183 cases: 116 Rust library + 2 examples + 47 TS + 18 Playwright. fmt, Clippy with
+warnings denied, typecheck, Biome, and production build passed. The 15-minute
+selection regression went RED → GREEN.
 
-Zamok подписал и нотарифицировал0.2.3. codesign/deep/strict, Gatekeeper
-(Notarized Developer ID) и stapler для DMG/app пройдены. DMG3 498 977байт,
+Zamok signed and notarized 0.2.3. codesign/deep/strict, Gatekeeper (Notarized
+Developer ID), and stapler passed for the DMG/app. DMG: 3 498 977 bytes,
 SHA-256 `69acd3ffec367501a4e95629a0153cc1d6787d224cced0148d11bbfc89759090`.
-Consumer download hash совпадает. Ссылка:
+The consumer download hash matches. Artifact:
 `artifacts/macos/0.2.3/KnowYourLimits-0.2.3.dmg`.
 
-Установлено /Applications/KnowYourLimits.app. Старая0.2.2 завершена через
-owned SIGTERM/awaited shutdown, backup:
+Installed at /Applications/KnowYourLimits.app. Previous 0.2.2 exited through
+owned SIGTERM/awaited shutdown; backup:
 `~/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.3-1791737291084.app`.
-Сохранена исходная settings.json в том же каталоге с timestamp1791737291084.
+Original settings.json was saved in the same directory with timestamp 1791737291084.
 
-Нативная0.2.3 запущена с закрытой панелью и временным интервалом1мин,
-PID85042. Live smoke не запускался, кнопки чтения не нажимались.
-Сам background ticker обновил оба источника с morning fetchedAt
-Claude1791720096820/Codex1791720162026 до
-Claude1791737358213/Codex1791737362877 (current, остаток67%/97%).
-Следующий автоматический цикл обновил даты до
-Claude1791737423128/Codex1791737427985, обаcurrent. Это два настоящих
-фоновых цикла при минутном интервале. Default tests не запускают реальные CLI.
+Native 0.2.3 launched with a closed panel and a temporary one-minute interval,
+PID 85042. No live smoke or reading-button clicks were performed. The background
+ticker itself updated both sources from morning fetchedAt values
+Claude 1791720096820 / Codex 1791720162026 to
+Claude 1791737358213 / Codex 1791737362877, both current with 67%/97% remaining.
+The next automatic cycle updated timestamps to
+Claude 1791737423128 / Codex 1791737427985, both current. These were two real
+background cycles with a one-minute interval. Default tests do not run real CLIs.
 
-После smoke приложение завершено, обоим провайдерам атомарно сохранены15мин,
-затем приложение запущено заново. Остальные настройки не изменены:
-checksum с обнулёнными только refreshMinutes до/после совпал
+After smoke verification, the app exited, 15 minutes was saved atomically for both
+providers, and the app relaunched. Other settings stayed unchanged: the checksum
+with only refreshMinutes zeroed matched before/after:
 `923da1a73e7e0a5884975b393ff50aa4671020a7421eaa821447fadf96dee5c5`.
-15-минутный deadline проверен детерминированным тестом (899sне читает,
-901sчитает), реальный15-минутный цикл в этом smoke не ожидался.
-CUA AXcapture timeout; запуск подтверждён процессом, фоновые чтения —
-изменением настоящих snapshots на диске. Физические клики UI не заявляются.
+A deterministic test verified the 15-minute deadline: no reading at 899 seconds,
+a reading at 901 seconds. The smoke did not wait for a real 15-minute cycle.
+CUA AX capture timed out. The process confirmed launch; changing real on-disk
+snapshots confirmed background readings. Physical UI clicks are not claimed.

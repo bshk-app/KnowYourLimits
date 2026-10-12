@@ -1,46 +1,49 @@
-# KnowYourLimits — прототип P0
+# KnowYourLimits — P0 prototype
 
-## Цель и границы
+## Goal and scope
 
-Запускаемый macOS-first Tauri 2 прототип на Rust + vanilla TypeScript, опирающийся на
-[исследование](../../claudedocs/research_limits_tauri2_2026-10-10.md). Это проверка UX,
-не рабочий автономный монитор. Все проценты вымышлены и явно помечены «Демо».
-Реальные CLI, OAuth, credentials, inference, уведомления и автозапуск НЕ подключаются.
-Будущий автономный Claude adapter остаётся отдельным техническим spike.
+A runnable macOS-first Tauri 2 prototype using Rust and vanilla TypeScript, based on
+[the research](../../claudedocs/research_limits_tauri2_2026-10-10.md). This validates
+UX rather than providing a working autonomous monitor. All percentages are fictional
+and explicitly labeled Demo. Real CLIs, OAuth, credentials, inference, notifications,
+and automatic startup are not connected. An autonomous Claude adapter remains a
+separate future technical spike.
 
-## Поведение
+## Behavior
 
-- Одна template-иконка в строке меню; слева/справа от неё системный title с `C`/`X`.
-- Старт с закрытой панелью, без Dock icon. Левый клик открывает панель под иконкой;
-  повторный клик оставляет её открытой. Потеря фокуса / Escape / закрытие скрывают её.
-  Правое меню: открыть, обновить демо, выйти.
-  **REVISED после ревью:** P0 использует идемпотентное открытие вместо первоначального
-  toggle, чтобы не зависеть от порядка macOS blur/mouse-up событий. Это намеренное
-  сужение prototype UX; toggle с координацией событий отложен.
-- Обе карточки одновременно: отдельные короткое/недельное окна, «использовано», reset countdown.
-- Счётчик в меню — округлённый минимум остатка доступных свежих основных окон.
-  Только current sample не старше 5 минут; истёкшее окно не становится нулём.
-  Stale/error/unavailable и отсутствие подходящих окон дают `—`, не `0%`.
-  Исторические числа в панели сохраняются, но явно обозначены как неактуальные.
-- Настройки: первый провайдер, второй или «не показывать», без повторов; массив 1–2 ID
-  сохраняет порядок. Пороги 1–100%, уникальные, до 5 на провайдера, default 80/95/100.
-  В P0 пороги только изменяют визуальное предупреждение, не отправляют уведомления.
-- Native settings сохраняются в app config JSON, атомарной заменой. Preview хранит
-  только настройки в localStorage; демосценарий не сохраняется. Ошибка чтения/записи видна.
-- Демо-переключатель: обычный расход, почти исчерпано, устарело, ошибка, нет данных.
-  «Обновить демо» создаёт новый вымышленный snapshot, а не запрашивает аккаунт.
-- Preview страницы — средство удалённой демонстрации, не дополнительная веб-версия продукта.
+- One template icon in the menu bar, with a system title containing `C`/`X` beside it.
+- Start with the panel closed and no Dock icon. Left click opens the panel under the
+  icon; clicking again leaves it open. Loss of focus, Escape, and closing hide it.
+  The right-click menu offers open, refresh demo, and quit.
+  **REVISED after review:** P0 uses idempotent opening instead of the initial toggle
+  to avoid depending on the order of macOS blur/mouse-up events. This deliberately
+  narrows prototype UX; toggling with event coordination is deferred.
+- Show both cards together, with separate short/weekly windows, used quota, and reset countdown.
+- The menu counter is the rounded minimum remaining quota among available fresh
+  primary windows. Only current samples no older than five minutes qualify; an
+  expired window does not become zero. Stale/error/unavailable states or no eligible
+  windows produce `—`, not `0%`. Historical card values remain visible but are
+  explicitly marked as outdated.
+- Settings select the first provider and a second provider or None, without duplicates;
+  an array of one or two IDs preserves order. Thresholds range from 1–100%, are
+  unique, and allow up to five per provider; defaults are 80/95/100. In P0 they
+  change visual warnings only and do not send notifications.
+- Native settings use app configuration JSON with atomic replacement. Preview saves
+  only settings in localStorage, not the demo scenario. Read/write errors are visible.
+- Demo scenarios: normal usage, nearly exhausted, stale, error, and no data.
+  Refresh demo creates a new fictional snapshot instead of querying an account.
+- Preview pages support remote demonstrations, not an additional web product.
 
-## Модули и контракт
+## Modules and contract
 
-- `src/model.ts`: DTO, свежесть, форматирование, counters, валидация настроек.
-- `src/fixtures/demo.json`: общие вымышленные проценты и reset offsets для Rust/TS.
-- `src/bridge.ts`: узкие native команды; в браузере локальный demo fallback.
-- `src/main.ts`, `src/style.css`: компактный UI без React/router/remote assets.
-- `src-tauri/src/model.rs`: native DTO, demo snapshot, settings validation, counter.
-- `src-tauri/src/lib.rs`: state, atomic settings storage, menu/tray/window, fixed IPC.
+- `src/model.ts`: DTOs, freshness, formatting, counters, and settings validation.
+- `src/fixtures/demo.json`: shared fictional percentages and reset offsets for Rust/TS.
+- `src/bridge.ts`: narrow native commands with a local browser demo fallback.
+- `src/main.ts`, `src/style.css`: compact UI without React, a router, or remote assets.
+- `src-tauri/src/model.rs`: native DTOs, demo snapshot, settings validation, and counter.
+- `src-tauri/src/lib.rs`: state, atomic settings storage, menu/tray/window, and fixed IPC.
 
-DTO camelCase:
+Camel-case DTOs:
 
 ```ts
 type ProviderId = 'claude' | 'codex';
@@ -67,15 +70,15 @@ type AppState = {
 ```
 
 IPC: `get_state()`, `save_settings({settings})`, `set_demo_scenario({scenario})`,
-`refresh_demo()`, `hide_panel()`. State-changing commands return `AppState`; get returns
-`AppState`; hide returns void. Ни frontend-controlled paths, ни shell/http/fs plugins.
+`refresh_demo()`, `hide_panel()`. State changes and reads return `AppState`;
+hiding returns void. No frontend-controlled paths or shell/HTTP/filesystem plugins.
 
-## Критерии проверки
+## Verification criteria
 
-1. TS/Rust tests: minimum remaining (не среднее), порядок, singleton, missing/stale/error,
-   истёкший reset, invalid percentages, settings validation и camelCase parity.
-2. TS strict check, Biome check, Vite build, cargo fmt/test/clippy и native build.
-3. Проверка preview: переключение сценариев, редактирование/сохранение настроек,
-   восстановление после reload, light/dark, отсутствие внешних запросов/ошибок JS.
-4. Native smoke: title, скрытая панель, открытие из tray, сохранение настроек,
-   packaged `.app`. Непроверенное поведение явно отметить в README.
+1. TS/Rust tests: minimum remaining quota, order, a single provider, missing/stale/error
+   data, expired resets, invalid percentages, settings validation, and camel-case parity.
+2. Strict TypeScript, Biome, Vite build, cargo fmt/test/clippy, and native build.
+3. Preview: scenario switching, editing/saving settings, restoration after reload,
+   light/dark themes, and absence of external requests or JavaScript errors.
+4. Native smoke: title, hidden panel, opening from the tray, settings persistence,
+   and packaged `.app`. Clearly identify unverified behavior in README.

@@ -1,133 +1,135 @@
-# P1c: проверка автономного источника Claude
+# P1c: standalone Claude source verification
 
-**Обновление 0.2.1:** выяснено, что пустой machine report также скрывает HTTP429
-с seeded fallback. Прежняя гипотеза о traffic flag не закрывала эту причину.
-Reader теперь классифицирует 429 и сохраняет server retry deadline;
-пустые проценты не восстанавливаются из текста.
-[Текущее исправление](release-0.2.1.md). Далее — исторический отчёт spike.
+**0.2.1 update:** an empty machine report was found to also hide HTTP 429 with a
+seeded fallback. The earlier traffic-flag hypothesis did not cover this cause.
+The reader now classifies HTTP 429 and preserves the server retry deadline;
+it does not restore missing percentages from text. See [the current fix](release-0.2.1.md).
+The remainder is the historical spike report.
 
-Дата: 10 октября 2026 года. **Standalone reader реализован и проверен;
-пригодность источника для native LIVE пока не подтверждена.**
+Date: October 10, 2026. **The standalone reader is implemented and tested;
+suitability for native LIVE is not yet confirmed.**
 
-В CLI 2.1.296 есть локальный неинтерактивный `/usage` со структурированным
-`usage_report`. Поэтому PTY для этого spike не понадобился. Первый probe получил
-global session/weekly окна с процентами и RFC3339 reset; итоговый CLI result
-сообщил 0 turns, 0 API duration, 0 стоимости и 0 токенов. Это наблюдение CLI и
-проверка его локального dispatch, а не независимый аудит всех сетевых запросов.
+CLI 2.1.296 has a local, noninteractive `/usage` command with a structured
+`usage_report`, so this spike did not need a PTY. The first probe obtained global
+session/weekly windows with percentages and RFC3339 resets. The final CLI result
+reported zero turns, API duration, cost, and tokens. This is a CLI observation and
+local dispatch check, not an independent audit of all network requests.
 
-## Реализовано
+## Implemented
 
-- `src-tauri/src/claude.rs`: отдельный Unix reader, не подключённый к GUI/IPC.
-  Выдаёт только существующий `ProviderSnapshot` либо статическую категорию ошибки.
-- Trusted absolute executable → canonical target → версия → один `/usage`.
-  Поддерживается только **2.1.296**, без fallback на другой CLI, PTY или inference.
-- Per-process `--safe-mode`, пустые tools/MCP, no Chrome, no session persistence,
-  zero-turn limit, hooks/connectors/auto-continue restrictions и отключение
+- `src-tauri/src/claude.rs`: a separate Unix reader, not connected to GUI/IPC.
+  Returns only the existing `ProviderSnapshot` or a static error category.
+- Trusted absolute executable → canonical target → version → one `/usage`.
+  Only **2.1.296** is supported, without fallback to another CLI, PTY, or inference.
+- Per-process `--safe-mode`, empty tools/MCP, no Chrome or session persistence,
+  zero-turn limit, hooks/connectors/auto-continue restrictions, and disabled
   nonessential traffic/telemetry/error reporting/updates/background tasks/memory.
-  `--bare` не подходит: он исключает subscription OAuth. `--disable-slash-commands`
-  тоже не подходит: pinned implementation убирает и локальные built-in commands.
-- Ограничены stdout/stderr, JSON frame/count и общий 15s deadline двух запусков.
-  На всех исходах owned process group убивается **до reaping**, затем reader
-  ожидает подтверждённый exit. При временной OS wait error сохраняет владение.
-  Cancellation нужно await, не abort; SIGKILL/power loss не дают такой гарантии.
-- Parser принимает только local usage result с подтверждёнными нулевыми
-  model counters. Account identity, session details, activity, costs, extra usage,
-  scoped-model windows и raw diagnostics не входят в DTO.
-- Глобальные `session`/`weekly_all` нормализуются отдельно; `is_active=false`
-  не исключает валидное окно. Invalid/duplicate окна → error; отсутствующие →
-  unavailable без процентов/timestamp. RFC3339 разбирает уже присутствовавший
-  в lockfile Chrono 0.4.45, теперь явная Unix dependency.
-- Пример `claude_read` требует `--live <trusted-absolute-path>` и завершает
-  managed cancellation перед выходом по SIGINT/SIGTERM.
+  `--bare` excludes subscription OAuth. `--disable-slash-commands` also removes
+  local built-in commands in the pinned implementation, so neither flag is suitable.
+- Bounds cover stdout/stderr, JSON frames/count, and a shared 15-second deadline
+  for both launches. On every outcome, the owned group is killed **before reaping**,
+  then the reader awaits confirmed exit and retains ownership across temporary OS
+  wait errors. Cancellation must be awaited, not aborted; SIGKILL/power loss has
+  no such guarantee.
+- The parser accepts only local usage results with confirmed zero model counters.
+  Account identity, session details, activity, costs, extra usage, scoped model
+  windows, and raw diagnostics do not enter DTOs.
+- Global `session`/`weekly_all` normalize separately; `is_active=false` does not
+  exclude a valid window. Invalid/duplicate windows produce errors; missing windows
+  are unavailable without percentages/timestamps. RFC3339 parsing uses Chrono
+  0.4.45, already in the lockfile and now an explicit Unix dependency.
+- `claude_read` requires `--live <trusted-absolute-path>` and completes managed
+  cancellation before exiting on SIGINT/SIGTERM.
 
-## Найденные ограничения источника
+## Source limitations
 
-**Нельзя считать успешное завершение `/usage` подтверждением актуальной квоты.**
-В последующих реальных запусках CLI показывал проценты в текстовой части, но
-`usage_report.rate_limits.limits` не содержал окон. Rust reader правильно вернул:
+**Successful `/usage` completion does not prove current quota.** Later real runs
+showed percentages in the text while `usage_report.rate_limits.limits` contained
+no windows. The Rust reader correctly returned:
 
 ```json
 {"id":"claude","label":"Claude","status":"unavailable","fetchedAt":null,"windows":[]}
 ```
 
-Причина отсутствия `limits` в конкретном ответе окончательно не установлена.
-Диагностический запуск показал одну попытку CLI-owned quota GET и нулевые
-model counters; он не доказал источник/свежесть процентов из текстовой части.
-Текст не используется как запасной источник. Новая авторизация, собственный
-OAuth client или изменение пользовательского CLI/config ради этого не выполнялись.
+The reason `limits` was absent in that response was not conclusively established.
+A diagnostic launch showed one CLI-owned quota GET attempt and zero model counters;
+it did not prove the source or freshness of text percentages. Text is not a
+fallback source. No new authorization, custom OAuth client, or changes to the
+user's CLI/configuration were performed to address it.
 
-В pinned embedded implementation подтверждены два важных пути:
+Two important paths were confirmed in the pinned embedded implementation:
 
-1. `R`/`bXn` могут вернуть сохранённый utilization моложе **60 секунд**, не
-   обращаясь к endpoint; машинный report не содержит observation timestamp.
-   Поэтому `fetchedAt` reader — консервативная нижняя граница: start минус 60s,
-   а не обещание точного времени измерения. При имеющихся 5 мин TTL это оставляет
-   максимум около 4 мин текущего показателя после чтения.
-2. `Ghn` убирает generic `limits` из `seeded` fallback, сохраняя legacy поля для
-   текстового отображения. `v` формирует machine twin только из `limits` и
-   `extra_usage`. Отсутствие generic окон нельзя восстанавливать из legacy text
-   без доказательства свежести. Начальный положительный probe также мог попасть
-   в разрешённый короткий cache; он сам по себе не доказывает cold autonomous read.
+1. `R`/`bXn` can return saved utilization younger than **60 seconds** without querying
+   the endpoint; the machine report omits observation timestamps. The reader's
+   `fetchedAt` is therefore a conservative lower bound: start minus 60 seconds,
+   not an exact measurement time. With the existing five-minute TTL, this leaves
+   at most approximately four minutes of current status after reading.
+2. `Ghn` removes generic `limits` from the `seeded` fallback but retains legacy
+   fields for text display. `v` generates the machine twin only from `limits` and
+   `extra_usage`. Missing generic windows cannot be restored from legacy text
+   without freshness evidence. The first positive probe could also have used the
+   permitted short cache; it does not prove an autonomous cold reading by itself.
 
-Из-за этого **Claude не включён в native LIVE и polling не добавлен**. Нужен
-подтверждённый cold-read путь с observation time/статусом источника либо исправленный
-официальный machine report. PTY-текст сам по себе этот freshness gap не решает.
-Codex manual integration продолжает работать по прежнему контракту.
+Consequently, **Claude was not enabled in native LIVE and polling was not added**.
+A confirmed cold-reading path with observation time/source status, or a corrected
+official machine report, is needed. PTY text alone does not resolve this freshness
+gap. Manual Codex integration continues under its previous contract.
 
-## Startup и границы доверия
+## Startup and trust boundaries
 
-Официальный `--safe-mode` сохраняет CLI-owned auth и отключает пользовательские
-customizations. Но **admin-managed settings/policy hooks продолжают применяться**.
-В `system/init` могут перечисляться metadata установленных plugins/skills даже
-при safe mode; наличие/отсутствие списка не доказывает исполнение. В probes tools
-и MCP были пусты. Код приложения не открывает credentials/config/cookies;
-официальный CLI сам может читать их, обновлять auth/cache и анализировать activity.
-Этот запуск не является side-effect-free и не является публичным API SLA.
+Official `--safe-mode` preserves CLI-owned authorization and disables user
+customizations, but **admin-managed settings/policy hooks still apply**.
+`system/init` may list installed plugin/skill metadata even in safe mode;
+its presence or absence does not prove execution. Tools and MCP were empty in the
+probes. Application code does not open credentials/configuration/cookies; the
+official CLI can read them, refresh authorization/cache, and analyze activity.
+This launch has side effects and does not provide a public API SLA.
 
-Проверенный локальный native binary: 2.1.296,
+Verified local native binary: 2.1.296,
 SHA-256 `c9b5341637becbd423ddffc5b254afb645682a3868cb708bbc6cc0e7bb419937`.
-Hash фиксирует проверенный образец, не удостоверяет происхождение установки.
-Embedded dispatch: local `/usage` → `shouldQuery=false`; structured report —
-отдельное sibling поле synthetic assistant message. Код binary не копировался
-в проект; реальные raw RPC/debug/identity/credential fixtures не сохранялись.
+The hash identifies the tested sample, not the installation's provenance.
+Embedded dispatch: local `/usage` → `shouldQuery=false`; the structured report
+is a separate sibling field in a synthetic assistant message. Binary code was not
+copied into the project, and no real raw RPC/debug/identity/credential fixtures
+were saved.
 
-## Проверки
+## Verification
 
-- **20 Claude tests**, включая schema/privacy/freshness, местное служебное
-  `ui_invalidate`, compatibility gate, exact isolated launch, executable symlink
-  retarget, budgets, EOF, timeout, cancellation до старта/в обоих subprocess stages
-  и подтверждённое завершение child/helper. Все fixture данные искусственные.
-- Normalization: сначала 4 RED failures, затем GREEN. Первый Rust live run выявил
-  служебное `system/ui_invalidate` перед init; добавлен targeted regression и
-  обработка в пределах stream budgets. Следующий run честно вернул unavailable.
-- Полный locked suite: **77 Rust library + 2 example, 42 TS, 13 Playwright = 134**.
-  TypeScript, Biome, production frontend build, rustfmt и all-target Clippy проходят.
-- Настоящий CLI не вызывается ни одним default test. Live smoke запускался
-  явно; его результат выше. Browser native tests остаются synthetic IPC mocks,
-  физическую native QA они не заменяют.
-- Собранный `claude_read` проверен с synthetic child/helper и реальными SIGINT,
-  SIGTERM: оба запуска завершились через awaited cancellation с exit 130,
-  stdout пуст, сообщение статическое, child и helper завершены. Это проверка
-  standalone signal path, не native GUI и не сетевого источника.
+- **20 Claude tests** cover schema/privacy/freshness, local `ui_invalidate`,
+  compatibility gates, exact isolated launch, executable symlink retargeting,
+  budgets, EOF, timeout, cancellation before startup and in both subprocess
+  stages, and confirmed child/helper termination. All fixtures are synthetic.
+- Normalization started with four RED failures, then GREEN. The first Rust live
+  run found `system/ui_invalidate` before init; a targeted regression and handling
+  within stream budgets were added. The next run correctly returned unavailable.
+- Full locked suite: **77 Rust library + 2 example + 42 TS + 13 Playwright = 134**.
+  TypeScript, Biome, production frontend build, rustfmt, and all-target Clippy passed.
+- Default tests do not invoke the real CLI. The live smoke was explicit and its
+  result is recorded above. Browser native tests remain synthetic IPC mocks and
+  do not replace physical native QA.
+- The built `claude_read` was checked with synthetic child/helper processes and
+  real SIGINT/SIGTERM. Both runs awaited cancellation, exited 130 with empty
+  stdout and a static message, and terminated both processes. This validates the
+  standalone signal path, not the native GUI or network source.
 
-## Запуск standalone example
+## Run the standalone example
 
 ```sh
 cargo run --locked --manifest-path src-tauri/Cargo.toml --example claude_read -- --live "$HOME/.local/bin/claude"
 ```
 
-Используйте реальный доверенный абсолютный путь своей установки. Другие версии
-reader отвергает. Официальный login выполняется пользователем в самом CLI;
-example не начинает login и не сохраняет snapshots. `--help` не запускает CLI.
+Use the actual trusted absolute path to your installation. The reader rejects
+other versions. The user signs in through the official CLI; the example does not
+start login or save snapshots. `--help` does not launch the CLI.
 
-## Первичные источники
+## Primary sources
 
 - [CLI reference: safe mode, bare, settings, tools, MCP, persistence](https://code.claude.com/docs/en/cli-reference)
 - [Built-in `/usage`](https://code.claude.com/docs/en/commands#built-in-commands)
-- [Hooks: per-process restrictions и managed hooks](https://code.claude.com/docs/en/hooks#disable-or-remove-hooks)
-- [Environment variables: nonessential traffic, telemetry и updates](https://code.claude.com/docs/en/env-vars)
+- [Hooks: per-process restrictions and managed hooks](https://code.claude.com/docs/en/hooks#disable-or-remove-hooks)
+- [Environment variables: nonessential traffic, telemetry, and updates](https://code.claude.com/docs/en/env-vars)
 - [Chrono RFC3339 parsing](https://docs.rs/chrono/0.4.45/chrono/struct.DateTime.html#method.parse_from_rfc3339)
 
-Детали machine twin/cache/dispatch выше — проверка локального pinned executable,
-а не обещание стабильности этих недокументированных полей.
-[Контракт реализации](specs/claude-spike.md).
+The machine twin/cache/dispatch details above were verified against the local
+pinned executable, not promised as stable undocumented fields.
+See [the implementation contract](specs/claude-spike.md).

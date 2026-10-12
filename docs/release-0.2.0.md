@@ -1,116 +1,113 @@
-# 0.2.0 — компактная строка меню и настройки провайдеров
+# 0.2.0 — compact menu bar and provider settings
 
-Обычный текст панели больше не выделяется. В полях ввода сохранены выделение,
-замена текста и клавиатурные команды редактирования. Курсор кнопок — обычная
-стрелка, как в нативной панели.
+Ordinary panel text is no longer selectable. Input fields retain selection,
+replacement, and keyboard editing commands. Buttons use a normal arrow cursor,
+following native panel behavior.
 
-## Строка меню
+## Menu bar
 
-Три настоящих варианта, переключаемых в настройках:
+Three actual variants are available in settings:
 
-- **Строка:** символ провайдера рядом с остатком в процентах.
-- **Два ряда:** символ/обозначение сверху, процент снизу — по референсу пользователя.
-- **Кольца:** два компактных индикатора, показывающих оставшуюся квоту.
+- **Row:** provider symbol beside the remaining percentage.
+- **Two rows:** symbol/label above, percentage below, following the user's reference.
+- **Rings:** two compact indicators showing remaining quota.
 
-Настройки каждого провайдера независимы: символ, буква, точка или отсутствие
-иконки; системный/выбранный цвет; маленький, средний или большой размер.
-Настройки можно открыть через шестерёнку соответствующей карточки.
-Предпросмотр показывает текущую настоящую квоту или `—`.
+Each provider has independent settings: a symbol, letter, dot, or no icon;
+system/custom color; and small, medium, or large size. Settings open through the
+corresponding card's gear button. Preview shows actual current quota or `—`.
 
-Нативная строка меню рендерится через CoreText/CoreGraphics в RGBA 2x;
-используется системный шрифт и высота 22 pt. Ширина зарезервирована под 100%,
-чтобы соседние элементы не прыгали при изменении числа. Системный цвет — template
-image macOS. При выбранных цветах используется цветная картинка. Theme change
-перерисовывает её. Рендер кэшируется по настройкам/значениям/теме, а не по revision.
-Изображение NSStatusItem явно получает логический размер, поскольку tray-icon
-по умолчанию ограничивает высоту изображения 18 pt.
+The native menu bar renders through CoreText/CoreGraphics into RGBA at 2x, using
+the system font and a 22 pt height. Width is reserved for 100% so adjacent items
+do not shift as values change. System color uses a macOS template image; custom
+colors use a color image, redrawn after theme changes. Rendering is cached by
+settings/values/theme, not revision. NSStatusItem explicitly receives a logical
+image size because tray-icon defaults to an 18 pt image height limit.
 
-`examples/render_tray.rs` экспортирует именно production renderer с пустым
-startup state. PNG в `artifacts/design/native-tray/` проверены визуально;
-preview-варианты с белым фоном предназначены только для QA прозрачной картинки.
-Никаких вымышленных квот в runtime или инструментах экспорта нет.
+`examples/render_tray.rs` exports the production renderer with empty startup
+state. PNGs in `artifacts/design/native-tray/` were visually checked; white-background
+previews are only for QA of the transparent image. Neither runtime nor export
+tools contain fictional quotas.
 
-## Автообновление
+## Automatic refresh
 
-Для Claude и Codex задаются отдельные интервалы:
-выключено, 1, 2, 5, 10, 15, 30 или 60 минут. По умолчанию выключено.
-Таймер работает после явного подключения аккаунта в текущем запуске приложения,
-в том числе при закрытой панели. После перезапуска подключение выполняется снова.
-Интервалы и остальные настройки сохраняются.
+Claude and Codex have separate intervals: disabled, 1, 2, 5, 10, 15, 30, or 60
+minutes. Disabled is the default. Timers operate after explicit account connection
+in the current application session, including with the panel closed. Connections
+must be reestablished after restart; intervals and other settings persist.
 
-Один owned ticker проверяет сроки каждые 5 секунд. Он не ставит параллельные CLI
-в очередь, пропускает занятое состояние, выбирает самый ранний срок и не
-использует catch-up после сна. Интервал начинается после завершения чтения;
-ошибка тоже откладывает следующую попытку. Изменение интервала начинает новый
-период. Выключение таймера отменяет будущие автоматические чтения, текущий запрос
-можно отменить отдельной кнопкой. Выход отменяет и ожидает ticker и owned CLI.
+One owned ticker checks deadlines every five seconds. It does not queue parallel
+CLIs, skips busy state, chooses the earliest deadline, and does not catch up after
+sleep. Intervals start after reading completion; errors also defer the next attempt.
+An interval change starts a new period. Disabling a timer cancels future automatic
+readings; a separate button cancels the current request. Exit cancels and awaits
+the ticker and owned CLI.
 
-Нативный get_state/focus остаётся read-only. Auto refresh не запускает login или
-генерацию. Снимки старше прежних 5 минут или с истёкшим reset не становятся
-актуальными из-за настройки длинного интервала.
+Native get_state/focus remains read-only. Automatic refresh does not start login
+or generation. Snapshots older than the existing five minutes or with expired
+resets do not become current merely because a longer interval is configured.
 
-## Уведомления
+## Notifications
 
-Каждый провайдер отдельно настраивает включение, звук, восстановление квоты и
-пороги использованного процента. Уведомления по умолчанию выключены.
-При первом включении запрашивается настоящее разрешение macOS.
-Кнопка проверки отправляет локальное уведомление через тот же native service.
+Each provider separately configures enablement, sound, quota recovery, and used
+percentage thresholds. Notifications are disabled by default. First enablement
+requests actual macOS permission. The test button sends a local notification
+through the same native service.
 
-Используется UserNotifications и retained статeless delegate, допускающий
-баннеры при открытой панели. Permission/delivery callbacks ожидаются через
-oneshot без raw NSError/identity в IPC. UserNotifications инициализируется
-только при обращении из настоящего .app bundle; unbundled development startup
-не вызывает этот API автоматически.
+The implementation uses UserNotifications and a retained stateless delegate that
+allows banners while the panel is open. Permission/delivery callbacks are awaited
+through oneshot, without raw NSError/identity in IPC. UserNotifications initializes
+only when invoked from a real .app bundle; unbundled development startup does not
+call this API automatically.
 
-Предупреждения вычисляются только по новому актуальному primary snapshot.
-Несколько одновременно пройденных порогов объединяются в одно уведомление.
-Повторные чтения того же окна/порога в этой сессии не повторяют предупреждение;
-дробная погрешность reset нормализуется до минуты. Изменение цвета/размера/звука
-не сбрасывает dedup. Восстановление требует нового валидного измерения, а не
-истечения таймера. Ошибка, stale, будущая дата, отсутствующее окно не дают
-ложного восстановления или 0%. В Notification Center хранится последнее
-уведомление каждого провайдера.
+Warnings use only a new current primary snapshot. Several thresholds crossed at
+once produce one notification. Repeated readings of the same window/threshold in
+the session do not repeat warnings; fractional reset differences normalize to a
+minute. Color/size/sound changes do not reset deduplication. Recovery requires a
+new valid measurement, not an expired timer. Errors, stale data, future timestamps,
+and missing windows do not fabricate recovery or 0%. Notification Center keeps
+the most recent notification for each provider.
 
-Физическая доставка баннера, системный диалог разрешения и звук требуют
-пользовательской проверки в установленной версии. Default tests не запрашивают
-разрешение и не отправляют реальные системные уведомления. Браузерные native
-tests используют mock IPC; они не заменяют проверку packaged WebView.
+Physical banner delivery, system permission dialogs, and sound require user
+verification in the installed version. Default tests do not request permission or
+send real system notifications. Browser native tests use mock IPC rather than
+verifying the packaged WebView.
 
-## Сохранение и проверки
+## Persistence and verification
 
-Старый settings.json 0.1.2 читается без потери порядка/порогов и без переписывания
-при старте. Новые поля получают безопасные defaults. Некорректные цвета,
-перечисления, интервалы и notification flags отклоняются. Запись остаётся atomic.
+Existing 0.1.2 settings.json files load without losing order/thresholds or being
+rewritten at startup. New fields receive safe defaults. Invalid colors, enums,
+intervals, and notification flags are rejected. Writes remain atomic.
 
 99 Rust library + 2 example + 44 TypeScript + 13 Playwright = **158 cases**.
-Проверяются миграция, независимые настройки, таймер/ошибки/single-flight,
-notification dedup/recovery, сохранение drafts, выбор layout, запрет выделения
-обычного текста с сохранением редактирования. Нативный raster проверяется на
-размеры, видимость, прозрачность, цвет и template mode.
+Coverage includes migration, independent settings, timers/errors/single-flight,
+notification deduplication/recovery, drafts, layout selection, and disabled ordinary
+text selection with retained input editing. Native rasters are checked for size,
+visibility, transparency, color, and template mode.
 
-Сборка через существующий `zamokctl package`, Developer ID Q8H6GWJ658 и профиль
-Keychain `notarize`. Подпись/нотарификация и окончательный артефакт проверяются
-отдельно после сборки. Public Zamok/GitHub release не создаётся.
+Builds use existing `zamokctl package`, Developer ID Q8H6GWJ658, and the `notarize`
+Keychain profile. Signing/notarization and the final artifact are verified separately
+after building. No public Zamok/GitHub release is created.
 
-Первичные интерфейсы:
+Primary interfaces:
 [CoreText](https://docs.rs/core-text/22.0.0/core_text/font/struct.CTFont.html),
 [CoreGraphics](https://docs.rs/core-graphics/0.25.0/core_graphics/context/struct.CGContext.html),
 [UserNotifications](https://developer.apple.com/documentation/usernotifications),
 [Tauri tray API](https://docs.rs/tauri/2.12.2/tauri/tray/struct.TrayIcon.html).
 
-## Итоговая установка
+## Final installation
 
-Финальный DMG: 3 465 674 байт, SHA-256
+Final DMG: 3 465 674 bytes, SHA-256
 `17bf573ff015757c96ec7b5efc4bda9e88d38601e27ac7e5e6adaaa4e3f3bb75`.
-Нотарификация и stapling Apple подтверждены; codesign --deep --strict и
-Gatekeeper принимают DMG и приложение внутри consumer DMG.
+Apple notarization and stapling were confirmed; codesign --deep --strict and
+Gatekeeper accept the DMG and its embedded application.
 
-Обновлена `/Applications/KnowYourLimits.app`, версия 0.2.0.
-Предыдущий bundle корректно завершён и сохранён в
+`/Applications/KnowYourLimits.app` was updated to version 0.2.0. The previous
+bundle exited correctly and was saved at:
 `~/Library/Caches/KnowYourLimits/app-backups/KnowYourLimits-before-0.2.0-1791659651320.app`.
-Новая версия запущена, процесс PID6615 сохранялся активным больше минуты.
-Computer Use при попытке захвата панели вернул timeoutReached; физический клик
-разрешения/уведомления не подтверждён. Renderer PNG и UI с mock IPC проверены.
+The new version launched; PID 6615 stayed active for more than a minute.
+Computer Use returned timeoutReached when capturing the panel, so physical
+permission/notification clicks were not confirmed. Renderer PNGs and mock IPC UI
+were checked.
 
-Сервер скачивания: порт55999, сессия85200. Старые ссылки перенаправляются на
-финальную 0.2.0. Промежуточные bundle до выравнивания округления/Retina не раздаются.
+Download server: port 55999, session 85200. Old links redirect to final 0.2.0.
+Intermediate bundles before rounding/Retina alignment are not distributed.

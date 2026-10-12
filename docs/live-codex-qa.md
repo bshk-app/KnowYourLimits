@@ -15,7 +15,7 @@ Browser mock tests cannot prove AppKit/WebView/tray behavior.
 
 1. First launch: DEMO badge/tray marker, no CLI started; both fake counters labelled.
 2. Open panel with tray left click. Read startup-side-effects disclosure, activate
-   Codex. Both demo snapshots disappear immediately; Claude is «Не подключён».
+   Codex. Both demo snapshots disappear immediately; Claude is “Not connected”.
 3. Successful read: actual Codex windows/durations, minimum remaining in tray;
    LIVE label, no DEMO wording on real quota rows. Weekly-only is not called 5h.
 4. Refresh simultaneously from panel/tray: one child group, no queued second read.

@@ -1,66 +1,67 @@
-# Codex — read-only spike P1a
+# Codex — read-only P1a spike
 
-## Зачем
+## Purpose
 
-Следующий шаг после P0: доказать получение серверной подписочной квоты через официальный
-Codex CLI. Это отдельный on-demand reader, не включение live данных в существующий demo
-UI. P0 и browser preview продолжают показывать только явно помеченные демоданные.
+The next step after P0 proves subscription quota retrieval through the official
+Codex CLI. It is a separate on-demand reader, not live data in the existing demo
+UI. P0 and browser preview continue to show only explicitly labeled demo data.
 
-## Границы
+## Scope
 
-- Поддерживаемая измеряемая версия в этом шаге: установленный `codex-cli 0.162.0`.
-- Только stdio `app-server`, без daemon/WebSocket, shell-интерполяции и прямого HTTP API.
-- Handshake `initialize` → `initialized` → `account/rateLimits/read`.
-- Не создавать threads/turns, не вызывать inference, account/read/login/logout,
-  не читать/переписывать credentials, пользовательские config и history нашим кодом.
-  Официальный Codex самостоятельно использует свою существующую авторизацию.
-- Отдельный нейтральный cwd; telemetry в дочернем CLI выключается per-process overrides.
-  Перед реальным запросом проверить startup побочные эффекты по official source.
-- Не сохранять raw RPC/stderr, email, account IDs, tokens или реальные quota fixtures.
-- Не добавлять polling, notifications, автозапуск, новый authentication UI и Claude adapter.
+- The measured supported version for this step is the installed `codex-cli 0.162.0`.
+- Use only stdio `app-server`, without a daemon/WebSocket, shell interpolation, or direct HTTP API.
+- Handshake: `initialize` → `initialized` → `account/rateLimits/read`.
+- Do not create threads/turns, run inference, call account/read/login/logout, or
+  read/rewrite credentials, user configuration, or history in application code.
+  Official Codex uses its existing authorization itself.
+- Use a separate neutral working directory and disable child CLI telemetry through
+  per-process overrides. Verify startup side effects against official source before
+  a real request.
+- Do not retain raw RPC/stderr, email, account IDs, tokens, or real quota fixtures.
+- Do not add polling, notifications, automatic startup, new authentication UI, or a Claude adapter.
 
-## Узкий контракт
+## Narrow contract
 
-Reader получает путь к доверенному установленному Codex executable (только Rust/example
-caller; не новый frontend-controlled path). Возвращает нормализованный `ProviderSnapshot`
-или типизированную безопасную ошибку. CLI example печатает только quota snapshot или
-статическую error category; реальный ответ не пишется в репозиторий.
+The reader accepts the path to a trusted installed Codex executable from a Rust
+or example caller, not a new frontend-controlled path. It returns a normalized
+`ProviderSnapshot` or a typed safe error. The example prints only a quota snapshot
+or static error category; real responses are not written into the repository.
 
-- Проценты: native `usedPercent`, без локального расчёта usage/cap и без clamp.
-- Reset: Unix seconds → checked Unix milliseconds.
-- Labels определяются реальной `windowDurationMins`, а не положением primary/secondary.
-- Legacy `rateLimits` и актуальный `rateLimitsByLimitId`; в bar-квоту попадает только
-  подтверждённый общий Codex bucket, не code review / неизвестные model limits.
-- Nullable / missing windows и не-ChatGPT quota дают unavailable, не «0% осталось».
-- Invalid response и RPC error не выводят raw message/data. Error не означает исчерпание.
-- Reader не подменяет expired resets восстановившейся квотой; freshness/counter логика P0
-  остаётся источником вычисления минимального остатка.
-- `ordinaryUsageAllowed=false` запрещает актуальный bar-counter даже при оставшихся
-  процентах. Nullable permission сохраняется отдельно как «неизвестно», не `true`.
-- Ненулевая длительность nullable: для P0 DTO неизвестная duration представляется
-  sentinel `0` и честным label; это не измеренное нулевое окно. Percentages остаются native.
-- Если map присутствует, он авторитетен: при отсутствии `codex` не использовать legacy
-  fallback (сервер может положить туда первый чужой bucket).
+- Percentages use native `usedPercent`, without local usage/cap calculation or clamping.
+- Resets use checked conversion from Unix seconds to milliseconds.
+- Labels follow the actual `windowDurationMins`, not primary/secondary position.
+- Support legacy `rateLimits` and current `rateLimitsByLimitId`. Only the confirmed
+  general Codex bucket contributes to menu quota, not code review or unknown model limits.
+- Nullable/missing windows and non-ChatGPT quotas are unavailable, not 0% remaining.
+- Invalid responses and RPC errors do not expose raw message/data. Errors do not imply exhaustion.
+- Expired resets do not fabricate recovered quota; P0 freshness/counter logic remains
+  responsible for minimum remaining quota.
+- `ordinaryUsageAllowed=false` blocks a current menu counter even with quota remaining.
+  Nullable permission stays unknown rather than becoming `true`.
+- Positive duration can be nullable. Unknown duration uses sentinel `0` and an honest
+  label in the P0 DTO; this is not a measured zero-length window. Percentages stay native.
+- A present map is authoritative: if `codex` is absent, do not use the legacy fallback,
+  which may contain the server's first unrelated bucket.
 
-## Ресурсные ограничения
+## Resource limits
 
-- Один запрос, без автоматических retries. RPC deadline 15 секунд (включая handshake и writes),
-  затем отдельный bounded cleanup allowance до 2 секунд.
-- Ограниченные stdout frame/total bytes; stderr читается и отбрасывается, чтобы не заполнить pipe.
-- EOF, oversize, protocol error, timeout: scoped kill process group, await child exit.
-  При отмене future Drop синхронно kills group и schedules reaping на ещё живом Tokio
-  runtime; await в Drop невозможен. Caller обязан сохранять runtime живым для reaping.
-  Graceful cleanup после SIGKILL owner/выключения ОС не обещается.
-  Не оставлять app-server daemon при нормальных completion/error/cancellation.
-  Test harness не запускает реальный CLI по умолчанию.
+- One request without automatic retries. The 15-second RPC deadline includes handshake
+  and writes, followed by a separate cleanup allowance of up to two seconds.
+- Bound stdout frame and total bytes; drain and discard stderr to avoid filling its pipe.
+- On EOF, oversized output, protocol errors, or timeout, kill the scoped process group
+  and await child exit. When the future is canceled, Drop synchronously kills the group
+  and schedules reaping on the still-running Tokio runtime; Drop cannot await.
+  The caller must keep the runtime alive for reaping. Graceful cleanup after owner
+  SIGKILL or OS shutdown is not guaranteed. Normal completion/error/cancellation must
+  not leave an app-server daemon. Tests do not run the real CLI by default.
 
-## Проверка
+## Verification
 
-1. Получить live read без inference; в отчёт вынести только успешность, version и поля квот.
+1. Obtain a live reading without inference; report only success, version, and quota fields.
 2. Test-first normalization: flat/map, nulls, unknown buckets, duration, Unix units,
-   invalid percentages/timestamps, API/no quota, отсутствие raw error leakage.
-3. Fake stdio subprocess tests: handshake, unrelated notifications, EOF/malformed,
-   blocking/timeout, large stdout/stderr и cleanup child при success/error/cancellation.
-4. cargo fmt/test/clippy и regression checks P0; independent correctness review.
-5. Зафиксировать фактические ограничения. Live integration в tray/panel — следующий
-   отдельный шаг после успешного spike и явного разделения live/demo источников в UI.
+   invalid percentages/timestamps, API/no quota, and absence of raw error leakage.
+3. Fake stdio subprocess tests: handshake, unrelated notifications, EOF/malformed
+   output, blocking/timeout, large stdout/stderr, and child cleanup for success/error/cancellation.
+4. cargo fmt/test/clippy, P0 regressions, and independent correctness review.
+5. Record actual limitations. Tray/panel integration is a separate next step after
+   the spike succeeds and the UI explicitly separates live and demo sources.

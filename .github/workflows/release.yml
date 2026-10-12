@@ -35,14 +35,96 @@ jobs:
         id: version
         env:
           KYL_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: bun scripts/publish-windows-release.mjs --check-tag
+        run: bun scripts/publish-release.mjs --check-tag
+      - name: Check macOS signing credentials
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_API_PRIVATE_KEY APPLE_API_KEY APPLE_API_ISSUER; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret: $name. See docs/publishing.md."
+              exit 1
+            fi
+          done
   checks:
     needs: validate
     uses: ./.github/workflows/check.yml
     with:
       ref: ${{ inputs.tag || github.ref }}
-  publish:
+  macos:
     needs: [validate, checks]
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.0
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: 1.93.1
+      - uses: swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        with:
+          workspaces: src-tauri
+      - run: bun install --frozen-lockfile
+      - name: Import the Developer ID certificate and notarization key
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          umask 077
+          kyl_keychain="$RUNNER_TEMP/kyl-signing.keychain-db"
+          kyl_keychain_password=$(openssl rand -base64 32)
+          echo "::add-mask::$kyl_keychain_password"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/kyl-certificate.p12"
+          printf '%s' "$APPLE_API_PRIVATE_KEY" > "$RUNNER_TEMP/kyl-notary.p8"
+          security create-keychain -p "$kyl_keychain_password" "$kyl_keychain"
+          security set-keychain-settings -lut 21600 "$kyl_keychain"
+          security unlock-keychain -p "$kyl_keychain_password" "$kyl_keychain"
+          security import "$RUNNER_TEMP/kyl-certificate.p12" -k "$kyl_keychain" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign > /dev/null
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
+            -k "$kyl_keychain_password" "$kyl_keychain" > /dev/null
+          security list-keychains -d user -s "$kyl_keychain" "$HOME/Library/Keychains/login.keychain-db"
+          kyl_identity=$(security find-identity -v -p codesigning "$kyl_keychain" \
+            | sed -n 's/.*\([A-Fa-f0-9]\{40\}\) "Developer ID Application:.*$/\1/p')
+          if ! [[ "$kyl_identity" =~ ^[A-Fa-f0-9]{40}$ ]]; then
+            echo '::error::The certificate must contain exactly one valid Developer ID Application identity.'
+            exit 1
+          fi
+          printf 'APPLE_SIGNING_IDENTITY=%s\n' "$kyl_identity" >> "$GITHUB_ENV"
+          printf 'APPLE_API_KEY_PATH=%s\n' "$RUNNER_TEMP/kyl-notary.p8" >> "$GITHUB_ENV"
+          printf 'KYL_SIGNING_KEYCHAIN=%s\n' "$kyl_keychain" >> "$GITHUB_ENV"
+          rm "$RUNNER_TEMP/kyl-certificate.p12"
+      - name: Build, sign, notarize, and verify the macOS DMG
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: bun run package:macos:ci
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: KnowYourLimits-macos-arm64
+          path: |
+            artifacts/macos/*/*.dmg
+            artifacts/macos/*/manifest.json
+          if-no-files-found: error
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/kyl-signing.keychain-db" ]; then
+            security delete-keychain "$RUNNER_TEMP/kyl-signing.keychain-db"
+          fi
+          rm -f "$RUNNER_TEMP/kyl-certificate.p12" "$RUNNER_TEMP/kyl-notary.p8"
+  publish:
+    needs: [validate, checks, macos]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -56,9 +138,13 @@ jobs:
         with:
           name: KnowYourLimits-windows-x64
           path: artifacts/windows
-      - name: Verify and publish the Windows release
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: KnowYourLimits-macos-arm64
+          path: artifacts/macos
+      - name: Verify and publish the Windows and macOS release
         env:
           GH_TOKEN: ${{ github.token }}
           KYL_GITHUB_REPOSITORY: ${{ github.repository }}
           KYL_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: node scripts/publish-windows-release.mjs
+        run: node scripts/publish-release.mjs

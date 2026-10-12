@@ -1,98 +1,105 @@
-# Codex spike P1a
+# Codex P1a spike
 
-## Цель
+## Goal
 
-Доказать read-only получение подписочной квоты через официальный Codex и подготовить
-изолированный reader. Панель и browser preview P0 **остаются демо**. Это ещё не live монитор.
-[Контракт](specs/codex-spike.md).
+Prove read-only subscription quota retrieval through official Codex and prepare an
+isolated reader. The P0 panel and browser preview **remain demo-only**; this is not
+yet a live monitor. See [the contract](specs/codex-spike.md).
 
-## Что подтверждено
+## Confirmed findings
 
-- Локальный `codex-cli 0.162.0` успешно ответил на `account/rateLimits/read` после
-  `initialize` / `initialized`. Ни thread, ни turn, ни inference-запрос не отправлялись.
-- Реальный ответ содержал только `primary` с длительностью **10080 минут (неделя)**,
-  nullable secondary и map с canonical `codex`. Поэтому primary нельзя называть «5 часов».
-- Reset действительно Unix **seconds**, нормализация делает checked seconds → milliseconds.
-- `ordinaryUsageAllowed` — отдельное backend разрешение, не выводимое из процентов.
-- Ответ может содержать `accountId` и другие ненужные account/credits/banner поля:
-  они не должны попадать в нормализованный DTO, диагностику или сохранённые fixtures.
-- Probe запускал CLI в отдельной process group; после чтения scoped group kill и ожидание
-  child exit закрыли stdio. Raw RPC/stderr и account identity не сохранялись.
+- Local `codex-cli 0.162.0` successfully answered `account/rateLimits/read` after
+  `initialize` / `initialized`. No thread, turn, or inference request was sent.
+- The real response contained only `primary` with a duration of **10080 minutes
+  (one week)**, nullable secondary, and a map with canonical `codex`. Primary must
+  therefore not be labeled five hours.
+- Reset values are Unix **seconds**; normalization uses checked conversion to milliseconds.
+- `ordinaryUsageAllowed` is a separate backend permission, not derived from percentages.
+- Responses can contain `accountId` and unnecessary account/credits/banner fields;
+  they must not enter normalized DTOs, diagnostics, or saved fixtures.
+- The probe ran the CLI in a separate process group. A scoped group kill and wait
+  for child exit closed stdio after reading. Raw RPC/stderr and account identity
+  were not retained.
 
-## Важные ограничения startup
+## Startup limitations
 
-`app-server` **не является side-effect-free**. Без ограничений он может синхронизировать
-plugin repositories, auto-upgrade marketplaces, обновлять catalog/cache, обращаться к
-сети и выполнять CLI-owned auth refresh. Отсутствие inference не означает отсутствие
-фоновой сети и записей в CLI-owned cache.
+`app-server` **has side effects**. Without restrictions it can synchronize plugin
+repositories, upgrade marketplaces automatically, update catalogs/caches, access
+the network, and refresh CLI-owned authorization. Absence of inference does not
+imply absence of background networking or CLI-owned cache writes.
 
-Per-process overrides в этом spike (не изменение пользовательского config):
+This spike uses per-process overrides without changing user configuration:
 
 - `analytics.enabled=false`;
 - `otel.exporter="none"`, `otel.trace_exporter="none"`, `otel.metrics_exporter="none"`;
 - `features.plugins=false`, `features.remote_plugin=false`;
 - `features.hooks=false`, `features.apps=false`.
 
-В pinned source plugin startup tasks находятся под `plugins_enabled`, derived из
-Feature::Plugins; MCP processor constructor только сохраняет поля. Reader не отправляет
-MCP/threads/turns requests. Это не обещание отсутствия любых CLI background tasks: остаются
-CLI configuration/auth и model/cache startup. Мы **не** читаем config/credentials нашим
-кодом и не предполагаем, что `mcp_servers={}` очищает layered config.
+In the pinned source, plugin startup tasks are guarded by `plugins_enabled`,
+derived from Feature::Plugins; the MCP processor constructor only stores fields.
+The reader sends no MCP/thread/turn requests. This does not guarantee absence of
+all CLI background tasks: configuration/authentication and model/cache startup
+remain. Application code does **not** read configuration/credentials or assume
+that `mcp_servers={}` clears layered configuration.
 
-`CODEX_HOME` и авторизация наследуются из среды запуска; они принадлежат официальному CLI.
-Запуск в BB/terminal и будущий запуск через Finder могут иметь другой PATH/CODEX_HOME.
-Нужен доверенный установленный executable, не случайный файл из cwd.
+`CODEX_HOME` and authorization are inherited from the launch environment and
+belong to the official CLI. BB/terminal and future Finder launches may have
+different PATH/CODEX_HOME values. Use a trusted installed executable, not an
+arbitrary file from the working directory.
 
 ## CLI example
 
-После сборки reader:
+After building the reader:
 
 ```sh
 cargo run --manifest-path src-tauri/Cargo.toml --example codex_read -- "$(command -v codex)"
 ```
 
-Example не запускает GUI и печатает только нормализованный quota DTO либо статическую
-error category (safe numeric RPC code допустим). Он не пишет quota snapshots на диск.
-Не перенаправляйте его вывод в публичные документы/issue без необходимости.
+The example does not start the GUI. It prints only a normalized quota DTO or a
+static error category; safe numeric RPC codes are allowed. It does not write quota
+snapshots to disk. Avoid redirecting its output into public documents/issues unnecessarily.
 
-Reader — один bounded read, не retry/polling service. Deadline на RPC: 15 секунд;
-cleanup имеет отдельный bounded allowance до 2 секунд. Ctrl-C / SIGTERM example
-отменяют read future; group ownership нужен также для npm launcher + вложенного Rust CLI.
-Невозможно обещать graceful cleanup после SIGKILL самого owner или выключения ОС.
+The reader performs one bounded reading, not retries or polling. The RPC deadline
+is 15 seconds, with a separate cleanup allowance of up to two seconds. Ctrl-C and
+SIGTERM cancel the example's reading future; process-group ownership also covers
+npm launchers and nested Rust CLIs. Graceful cleanup after owner SIGKILL or OS
+shutdown cannot be guaranteed.
 
-## Выбор bucket и честная нормализация
+## Bucket selection and accurate normalization
 
-- Map присутствует → только `rateLimitsByLimitId.codex`, без legacy fallback:
-  сервер legacy может содержать первый **другой** bucket.
-- Map отсутствует/null → legacy допускается только без foreign limitId.
-- Null windows → нет окна, не zero usage; отсутствие обеих → unavailable.
-- Labels выводятся из настоящей duration. Unknown duration в текущем P0 DTO — sentinel
-  `0` с честным label, не измеренное «0-минутное окно».
-- Invalid percentages/durations/epochs → ошибка, без clamp и без придуманного остатка.
-- `ordinaryUsageAllowed=false` блокирует current counter; null не превращается в true.
-- No login/API-key/zero snapshots могут возвращаться как RPC error, а не пустая квота.
-  Не извлекать raw error text: одна безопасная category, проверить ChatGPT login в CLI.
+- A present map permits only `rateLimitsByLimitId.codex`, without a legacy fallback;
+  the server's legacy value may contain the first **different** bucket.
+- An absent/null map permits legacy data only without a foreign limitId.
+- Null windows mean no window, not zero usage; no windows means unavailable.
+- Labels follow actual duration. Unknown duration in the P0 DTO uses sentinel `0`
+  and an honest label, not a measured zero-minute window.
+- Invalid percentages/durations/epochs produce errors, without clamping or fabricated quota.
+- `ordinaryUsageAllowed=false` blocks a current counter; null does not become true.
+- No login, API-key authorization, or no snapshots can produce RPC errors instead
+  of empty quota. Do not extract raw error text; use one safe category and advise
+  checking ChatGPT login in the CLI.
 
-## Проверки реализации
+## Implementation verification
 
-- **25 Codex tests + 13 P0 = 38 Rust tests** прошли с `--locked --all-targets`.
-  Проверены schema/normalization, pipe/frame limits, timeout, EOF, RPC/privacy,
-  process group cleanup и future cancellation. Synthetic subprocess tests требуют
-  `/usr/bin/python3`; runtime reader не зависит от Python.
-- Исправлен найденный при проверке bug: `ordinaryUsageAllowed` принадлежит **верхнему
-  уровню ответа**, не bucket. Authentic fixtures дали 5 RED failures; после исправления
-  top-level false, null/missing, conflicting nested и invalid permission tests зелёные.
-  Focused independent re-review подтвердил исправление; это не полный proof отсутствия bugs.
-- Финальный **Rust example** успешно получил настоящий normalized quota snapshot:
-  current, недельное окно, top-level permission сохранено, milliseconds reset.
-  Ни raw account fields, ни реальный response fixture в repo не сохранены.
-- CLI signal smoke с synthetic child + helper: **SIGINT и SIGTERM**, exit 130,
-  stdout пуст, только статическое cancellation сообщение; оба child PID завершены.
-- cargo fmt/check, clippy `-D warnings` и locked dependency resolution прошли.
-  Обновлённый `Cargo.lock` сохранён (Tokio process/macros/signal dependencies).
-- Frontend regression P0: **34 TS + 6 browser tests**, strict TypeScript и Biome прошли.
-  Всего **78 automated test cases**, плюс ручной live-read и два CLI signal smoke.
-  Никакой live источник в UI этим шагом не включается.
+- **25 Codex tests + 13 P0 tests = 38 Rust tests** passed with `--locked --all-targets`.
+  Coverage includes schema/normalization, pipe/frame limits, timeout, EOF, RPC/privacy,
+  process-group cleanup, and future cancellation. Synthetic subprocess tests require
+  `/usr/bin/python3`; the runtime reader does not depend on Python.
+- Fixed a discovered bug: `ordinaryUsageAllowed` belongs to the **top-level response**,
+  not a bucket. Authentic fixtures produced five RED failures; top-level false,
+  null/missing, conflicting nested permission, and invalid permission tests passed
+  after the fix. Focused independent re-review confirmed it, without proving all
+  bugs absent.
+- The final **Rust example** successfully obtained a real normalized quota snapshot:
+  current status, a weekly window, preserved top-level permission, and reset in
+  milliseconds. No raw account fields or real response fixture were retained.
+- CLI signal smoke with synthetic child/helper: **SIGINT and SIGTERM**, exit 130,
+  empty stdout, a static cancellation message only, and both child PIDs terminated.
+- cargo fmt/check, clippy `-D warnings`, and locked dependency resolution passed.
+  The updated `Cargo.lock` includes Tokio process/macros/signal dependencies.
+- P0 frontend regressions: **34 TS + 6 browser tests**, strict TypeScript, and Biome
+  passed. **78 automated test cases total**, plus a manual live reading and two
+  CLI signal smokes. This step does not enable a live UI source.
 
 ## Official pinned sources
 
@@ -105,4 +112,4 @@ Version tag `rust-v0.162.0`, commit `c1382380de69521303b416720a52f42d51af6248`:
 - [Plugin startup guard](https://github.com/openai/codex/blob/c1382380de69521303b416720a52f42d51af6248/codex-rs/core-plugins/src/manager.rs#L2814-L2922)
 - [MCP processor construction](https://github.com/openai/codex/blob/c1382380de69521303b416720a52f42d51af6248/codex-rs/app-server/src/request_processors/mcp_processor.rs)
 
-App-server experimental: проверенная версия не означает вечный контракт/SLA.
+App-server is experimental: a verified version does not imply a permanent contract or SLA.

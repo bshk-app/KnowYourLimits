@@ -1,57 +1,59 @@
-# P1b: проверки live Codex
+# P1b: live Codex verification
 
-## Подтверждено автоматическими проверками
+## Automated verification
 
-- 42 TS tests; strict TypeScript и Biome прошли.
-- 13 Playwright tests: 7 browser-preview + 6 synthetic native IPC/event tests.
-- 57 Rust library + 1 example opt-in test; `--locked --all-targets`, fmt/check и
-  clippy `-D warnings` прошли. **Всего 113 автоматических test cases**.
-- P0 settings/order/freshness/expired-reset semantics сохранены; browser остаётся
-  только демо. Native mock проверяет connect/weekly label/Claude disconnected,
-  draft isolation, refresh/back-to-demo и late revision rejection.
-- Fake stdio/coordinator tests проверяют единственный job, history timestamps,
-  settings merge, cancellation, mode/shutdown races и child/helper termination.
+- 42 TypeScript tests; strict TypeScript and Biome passed.
+- 13 Playwright tests: seven browser-preview and six synthetic native IPC/event tests.
+- 57 Rust library tests and one opt-in example test; `--locked --all-targets`,
+  fmt/check, and clippy `-D warnings` passed. **113 automated test cases total**.
+- P0 settings/order/freshness/expired-reset semantics are preserved; the browser
+  remains demo-only. Native mocks verify connection, weekly labels, disconnected
+  Claude, draft isolation, refresh/return-to-demo, and rejection of late revisions.
+- Fake stdio/coordinator tests verify a single job, historical timestamps, settings
+  merging, cancellation, mode/shutdown races, and child/helper termination.
 
-## Реальное чтение
+## Real reading
 
-Opt-in example `live_read --live` использует **тот же production coordinator и
-resolver**, что IPC/tray. Запуск с `PATH=/usr/bin:/bin:/usr/sbin:/sbin` прошёл:
-`mode=live`, `refreshing=false`, Codex current с недельным окном, Claude empty и
-без timestamp, notice отсутствует. Проверенный CLI — Homebrew `0.162.0`.
-Не сохранялись реальный raw RPC/stderr, identity или credential fixture.
+The opt-in `live_read --live` example uses **the same production coordinator and
+resolver** as IPC/tray. Running with `PATH=/usr/bin:/bin:/usr/sbin:/sbin` passed:
+`mode=live`, `refreshing=false`, current Codex with a weekly window, empty Claude
+without a timestamp, and no notice. The tested CLI was Homebrew `0.162.0`.
+No real raw RPC/stderr, identity, or credential fixture was retained.
 
-Первый smoke выбрал неработающий дубль из user bin и честно вернул Error/`—`.
-Discovery исправлен: известные Homebrew bins имеют приоритет над user bins;
-метаданные вместо shell/версий-проб, без fallback/retry чтения другой CLI.
-Порядок прошёл RED/GREEN regression. Глобальный PATH/CODEX_HOME не меняются.
+The first smoke selected a broken duplicate in a user bin and correctly returned
+Error/`—`. Discovery was fixed to prioritize known Homebrew bins over user bins,
+using metadata rather than shell/version probes, without fallback/retry readings
+through another CLI. The ordering regression passed RED/GREEN. Global PATH and
+CODEX_HOME are unchanged.
 
-## Найдено и исправлено
+## Findings and fixes
 
-- Установку GUI signal listener перенесли после `manage(RuntimeState)`, чтобы
-  ранний сигнал не вызывал callback до появления managed state.
-- Spec-auditor нашёл условный cleanup gap: managed reader мог после 2 секунд
-  передать reaping в Drop и завершить job раньше ожидания process exit.
-  Managed cleanup теперь **сохраняет владение до подтверждённого wait**, включая
-  OS wait errors (backoff, не новые RPC/CLI calls). Standalone reader сохраняет
-  прежний bounded cleanup. Regression воспроизвёл RED на 2.01s, затем GREEN.
-  При отказе ОС managed cleanup может ждать дольше; force-kill не гарантирует cleanup.
+- GUI signal listener installation now follows `manage(RuntimeState)` so an early
+  signal cannot invoke a callback before the managed state exists.
+- The specification audit found a conditional cleanup gap: after two seconds, the
+  managed reader could delegate reaping to Drop and complete before process exit.
+  Managed cleanup now **retains ownership until wait confirms exit**, including
+  OS wait errors with backoff, not new RPC/CLI calls. The standalone reader keeps
+  its bounded cleanup. The regression reproduced RED at 2.01 seconds, then GREEN.
+  An OS failure can make managed cleanup wait longer; force-kill does not guarantee cleanup.
 
-## Native build / UI
+## Native build and UI
 
-- Debug `.app` собрана: `src-tauri/target/debug/bundle/macos/KnowYourLimits.app`,
-  **27.27 MiB**. Это не notarized/оптимизированный release.
-- Два запуска packaged executable с минимальным PATH: процесс работал 3 секунды,
-  Codex child при старте не обнаружен; SIGTERM и SIGINT обработаны через graceful
-  exit (коды 143 и 130, не OS signal termination), без panic. Smoke-процессы завершены.
-- Это signal smoke **без активного GUI-чтения**; активная отмена/child/helper проверены
-  synthetic managed tests. Физические tray clicks, packaged WebView IPC,
-  focus/DPI/multi-monitor UX всё ещё требуют ручной QA.
-- Focused correctness review не выявил подтверждённых bugs; spec audit после
-  managed-cleanup исправления — **GREEN**. Это не proof отсутствия всех ошибок.
-- Разрешения macOS для Screen Recording/Accessibility не менялись.
-[Ручной чек-лист](live-codex-qa.md).
+- Debug `.app` built at `src-tauri/target/debug/bundle/macos/KnowYourLimits.app`,
+  **27.27 MiB**. It is not a notarized or optimized release.
+- Two packaged executable launches with minimal PATH ran for three seconds. No
+  Codex child was found at startup. SIGTERM and SIGINT caused graceful exit with
+  codes 143 and 130 rather than OS signal termination, without panic. Smoke
+  processes were stopped.
+- This signal smoke had **no active GUI reading**. Active cancellation and child/helper
+  cleanup were covered by synthetic managed tests. Physical tray clicks, packaged
+  WebView IPC, focus/DPI, and multiple-monitor UX still require manual QA.
+- Focused correctness review found no confirmed bugs. The specification audit was
+  **GREEN** after the managed cleanup fix. This does not prove all errors are absent.
+- macOS Screen Recording/Accessibility permissions were unchanged.
+  See [the manual checklist](live-codex-qa.md).
 
-## Не входит в этап
+## Outside this stage
 
-Polling, Claude reader, уведомления, login UI, автозапуск и произвольный выбор
-executable. Live mode/session consent не сохраняются; settings сохраняются.
+Polling, a Claude reader, notifications, login UI, automatic startup, and arbitrary
+executable selection. Live mode/session consent does not persist; settings do.
