@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { after, test } from 'node:test';
@@ -176,10 +184,10 @@ test('dry-run prepares a draft without credentials, Git or network access', () =
     },
   );
   const command = JSON.parse(output.trim().split('\n').at(-1));
-  assert.ok(command.includes('--no-publish'));
+  assert.ok(command.includes('--draft'));
   assert.ok(!command.includes('--publish'));
-  assert.equal(command[0], 'zamokctl');
-  assert.equal(command.at(-1), '<clean HEAD>');
+  assert.equal(command[0], 'node');
+  assert.equal(command[1], join(root, 'scripts/publish-release.mjs'));
 });
 
 function windowsFixture(source = fixture()) {
@@ -322,6 +330,7 @@ function publicationFixture(options = {}) {
   const macos = macosFixture(source);
   const calls = [];
   let release = options.existing;
+  let files = [];
   const directory = mkdtempSync(join(scratch, 'publication-'));
   const input = {
     info: windows.info,
@@ -342,12 +351,20 @@ function publicationFixture(options = {}) {
           break;
         case 'upload':
           if (options.uploadFails) throw new Error('Upload failed');
-          release.assets = args.slice(3, args.indexOf('--repo')).map((file) => ({
+          files = args.slice(3, args.indexOf('--repo'));
+          release.assets = files.map((file) => ({
             name: basename(file),
             state: 'uploaded',
+            size: statSync(file).size + (options.wrongSize ? 1 : 0),
           }));
           if (options.incomplete) release.assets.pop();
           break;
+        case 'download': {
+          const dest = args[args.indexOf('--dir') + 1];
+          for (const file of files) copyFileSync(file, join(dest, basename(file)));
+          if (options.corrupt) writeFileSync(join(dest, basename(files[0])), 'corrupted');
+          break;
+        }
         case 'edit':
           if (args.includes('--draft=false')) release.isDraft = false;
           break;
@@ -366,22 +383,38 @@ test('publication uploads both platforms and checksums before making the release
   assert.equal(getRelease().isDraft, false);
   assert.equal(getRelease().assets.length, 6);
   const checksums = readFileSync(join(input.directory, 'SHA256SUMS.txt'), 'utf8');
-  assert.equal(checksums.trim().split('\n').length, 3);
+  assert.equal(checksums.trim().split('\n').length, 5);
   assert.match(checksums, /Example-1\.2\.3-macos-arm64\.dmg/);
   const notes = readFileSync(join(input.directory, 'release-notes.md'), 'utf8');
   assert.match(notes, /Windows installer/);
   assert.match(notes, /macOS 13\.0\+ on Apple Silicon/);
   assert.ok(calls.find((args) => args[1] === 'create').includes('--draft'));
   assert.ok(calls.at(-1).includes('--draft=false'));
+  assert.equal(calls.at(-2)[1], 'download');
 });
 
 test('publication leaves failed or incomplete uploads as a draft', () => {
-  for (const options of [{ incomplete: true }, { uploadFails: true }]) {
+  for (const options of [{ incomplete: true }, { uploadFails: true }, { wrongSize: true }]) {
     const { input, calls, getRelease } = publicationFixture(options);
     assert.throws(() => publishRelease(input), /incomplete|Upload failed/);
     assert.equal(getRelease().isDraft, true);
     assert.ok(!calls.some((args) => args.includes('--draft=false')));
   }
+});
+
+test('publication rejects corrupted downloads while keeping the release a draft', () => {
+  const { input, calls, getRelease } = publicationFixture({ corrupt: true });
+  assert.throws(() => publishRelease(input), /Uploaded SHA-256 mismatch/);
+  assert.equal(getRelease().isDraft, true);
+  assert.ok(!calls.some((args) => args.includes('--draft=false')));
+});
+
+test('manual verification can keep a fully verified release as a draft', () => {
+  const { input, calls, getRelease } = publicationFixture();
+  publishRelease({ ...input, publish: false });
+  assert.equal(getRelease().isDraft, true);
+  assert.ok(calls.some((args) => args[1] === 'download'));
+  assert.ok(!calls.some((args) => args.includes('--draft=false')));
 });
 
 test('publication can resume a draft but refuses to overwrite a public release', () => {

@@ -40,6 +40,24 @@ const files = [
 });
 writeFileSync(
   join(output, 'manifest.json'),
-  `${JSON.stringify({ version: info.version, platform: 'windows', arch: 'x64', signed: false, sourceCommit, sourceDirty, files }, null, 2)}\n`,
+  `${JSON.stringify(
+    {
+      version: info.version,
+      platform: 'windows',
+      arch: 'x64',
+      signed: false,
+      sourceCommit,
+      sourceDirty:
+        sourceDirty ||
+        Boolean(
+          execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),
+        ) ||
+        execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim() !==
+          sourceCommit,
+      files,
+    },
+    null,
+    2,
+  )}\n`,
 );
 console.log(`Windows installer and executable: ${output}`);

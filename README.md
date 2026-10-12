@@ -7,7 +7,7 @@ Current version: **0.2.6**.
 by GitHub Actions: a Windows installer and portable executable, and a Developer ID
 signed, notarized DMG for Apple Silicon Macs. Each release includes SHA-256
 checksums and platform manifests. See [release setup and publishing](docs/publishing.md)
-for the required Apple secrets and version tag instructions.
+for shared Apple credentials and version tag instructions.
 
 Each provider has its own connect and manual refresh buttons. Counters start empty.
 After a successful quota reading, the application saves the latest snapshots,

@@ -9,6 +9,11 @@ on:
         description: Existing version tag to build and publish
         required: true
         type: string
+      publish:
+        description: Publish the verified release (off leaves a draft)
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -36,20 +41,20 @@ jobs:
         env:
           KYL_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: bun scripts/publish-release.mjs --check-tag
-      - name: Check macOS signing credentials
+      - name: Check Apple release credentials
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
         run: |
-          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_API_PRIVATE_KEY APPLE_API_KEY APPLE_API_ISSUER; do
-            if [ -z "${!name}" ]; then
-              echo "::error::Missing repository secret: $name. See docs/publishing.md."
-              exit 1
-            fi
-          done
+          # shellcheck disable=SC2016
+          node --input-type=module -e '
+            const required = ["DEVELOPER_ID_P12", "DEVELOPER_ID_P12_PASSWORD", "NOTARY_KEY_P8", "NOTARY_KEY_ID", "NOTARY_ISSUER"];
+            const missing = required.filter(name => !process.env[name]);
+            if (missing.length) throw new Error(`Missing repository secrets: ${missing.join(", ")}`);
+          '
   checks:
     needs: validate
     uses: ./.github/workflows/check.yml
@@ -74,55 +79,67 @@ jobs:
         with:
           workspaces: src-tauri
       - run: bun install --frozen-lockfile
-      - name: Import the Developer ID certificate and notarization key
+      - name: Install pinned Zamok packaging tool
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+          ZAMOK_VERSION: 1.10.1
+          ZAMOK_SHA256: f227c8b546f85b3f88ab541190516e6218dadff4f6ad8ff3d12a10d3a58101d2
+        run: |
+          curl --fail --silent --show-error --location \
+            "https://github.com/bshk-app/homebrew-tap/releases/download/zamokctl-${ZAMOK_VERSION}/zamokctl-${ZAMOK_VERSION}-macos-arm64.tar.gz" \
+            --output "$RUNNER_TEMP/zamokctl.tar.gz"
+          printf '%s  %s\n' "$ZAMOK_SHA256" "$RUNNER_TEMP/zamokctl.tar.gz" | shasum -a 256 --check
+          mkdir -p "$RUNNER_TEMP/zamok-bin"
+          tar -xzf "$RUNNER_TEMP/zamokctl.tar.gz" -C "$RUNNER_TEMP/zamok-bin"
+          echo "$RUNNER_TEMP/zamok-bin" >> "$GITHUB_PATH"
+      - name: Import Developer ID into a temporary Keychain
+        env:
+          DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
         run: |
           umask 077
-          kyl_keychain="$RUNNER_TEMP/kyl-signing.keychain-db"
-          kyl_keychain_password=$(openssl rand -base64 32)
-          echo "::add-mask::$kyl_keychain_password"
-          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/kyl-certificate.p12"
-          printf '%s' "$APPLE_API_PRIVATE_KEY" > "$RUNNER_TEMP/kyl-notary.p8"
-          security create-keychain -p "$kyl_keychain_password" "$kyl_keychain"
-          security set-keychain-settings -lut 21600 "$kyl_keychain"
-          security unlock-keychain -p "$kyl_keychain_password" "$kyl_keychain"
-          security import "$RUNNER_TEMP/kyl-certificate.p12" -k "$kyl_keychain" \
-            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign > /dev/null
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
-            -k "$kyl_keychain_password" "$kyl_keychain" > /dev/null
-          security list-keychains -d user -s "$kyl_keychain" "$HOME/Library/Keychains/login.keychain-db"
-          kyl_identity=$(security find-identity -v -p codesigning "$kyl_keychain" \
-            | sed -n 's/.*\([A-Fa-f0-9]\{40\}\) "Developer ID Application:.*$/\1/p')
-          if ! [[ "$kyl_identity" =~ ^[A-Fa-f0-9]{40}$ ]]; then
-            echo '::error::The certificate must contain exactly one valid Developer ID Application identity.'
-            exit 1
-          fi
-          printf 'APPLE_SIGNING_IDENTITY=%s\n' "$kyl_identity" >> "$GITHUB_ENV"
-          printf 'APPLE_API_KEY_PATH=%s\n' "$RUNNER_TEMP/kyl-notary.p8" >> "$GITHUB_ENV"
-          printf 'KYL_SIGNING_KEYCHAIN=%s\n' "$kyl_keychain" >> "$GITHUB_ENV"
-          rm "$RUNNER_TEMP/kyl-certificate.p12"
-      - name: Build, sign, notarize, and verify the macOS DMG
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 7200 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$DEVELOPER_ID_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          curl --fail --silent --show-error --location --retry 3 \
+            https://www.apple.com/certificateauthority/DeveloperIDCA.cer \
+            --output "$RUNNER_TEMP/DeveloperIDCA.cer"
+          security import "$RUNNER_TEMP/DeveloperIDCA.cer" -k "$keychain" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
+          existing=()
+          while IFS= read -r entry; do existing+=("${entry//\"/}"); done < <(security list-keychains -d user)
+          security list-keychains -d user -s "$keychain" "${existing[@]}"
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/DeveloperIDCA.cer"
+      - name: Write the Apple notarization key
         env:
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+        run: |
+          umask 077
+          printf '%s' "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+      - name: Build, sign, notarize and verify the macOS DMG
+        env:
+          KYL_SIGNING_IDENTITY_SHA1: ${{ secrets.RELEASE_SIGNING_IDENTITY_SHA1 }}
+          APPLE_API_KEY_PATH: ${{ runner.temp }}/notary.p8
+          APPLE_API_KEY: ${{ secrets.NOTARY_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.NOTARY_ISSUER }}
         run: bun run package:macos:ci
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Attach the verified DMG and manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: KnowYourLimits-macos-arm64
           path: |
             artifacts/macos/*/*.dmg
             artifacts/macos/*/manifest.json
           if-no-files-found: error
-      - name: Remove signing credentials
+      - name: Remove temporary Apple credentials
         if: always()
         run: |
-          if [ -f "$RUNNER_TEMP/kyl-signing.keychain-db" ]; then
-            security delete-keychain "$RUNNER_TEMP/kyl-signing.keychain-db"
-          fi
-          rm -f "$RUNNER_TEMP/kyl-certificate.p12" "$RUNNER_TEMP/kyl-notary.p8"
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/DeveloperIDCA.cer"
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true
   publish:
     needs: [validate, checks, macos]
     runs-on: ubuntu-latest
@@ -142,9 +159,15 @@ jobs:
         with:
           name: KnowYourLimits-macos-arm64
           path: artifacts/macos
-      - name: Verify and publish the Windows and macOS release
+      - name: Verify and publish both platforms
         env:
           GH_TOKEN: ${{ github.token }}
           KYL_GITHUB_REPOSITORY: ${{ github.repository }}
           KYL_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: node scripts/publish-release.mjs
+          KYL_PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+        run: |
+          if [ "$KYL_PUBLISH" = true ]; then
+            node scripts/publish-release.mjs
+          else
+            node scripts/publish-release.mjs --draft
+          fi
