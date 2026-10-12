@@ -1,6 +1,6 @@
 [package]
 name = "knowyourlimits"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2021"
 rust-version = "1.90"
 description = "A desktop tray quota indicator for Claude and Codex"
@@ -15,6 +15,7 @@ tauri-build = { version = "=2.7.1", features = [] }
 [dependencies]
 tauri = { version = "=2.12.2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "=2.5.2"
+tauri-plugin-updater = "=2.13.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "=0.4.45", default-features = false, features = ["std"] }

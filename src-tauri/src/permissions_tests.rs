@@ -59,3 +59,24 @@ fn only_settings_window_can_drag_resize_and_close_itself() {
         .resolve_access("plugin:shell|execute", "settings", "settings", local)
         .is_none());
 }
+
+#[test]
+fn updater_uses_app_commands_without_guest_http_filesystem_or_restart_permissions() {
+    let mut context = crate::app_context();
+    let authority = context.runtime_authority_mut();
+    for command in [
+        "plugin:updater|check",
+        "plugin:updater|download",
+        "plugin:updater|install",
+        "plugin:process|restart",
+        "plugin:http|fetch",
+        "plugin:fs|write_file",
+    ] {
+        assert!(
+            authority
+                .resolve_access(command, "main", "main", &tauri::ipc::Origin::Local)
+                .is_none(),
+            "unexpected broad updater access: {command}"
+        );
+    }
+}

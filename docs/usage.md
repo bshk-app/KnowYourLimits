@@ -113,6 +113,17 @@ load, and enabled timers resume after the selected interval. Loading the cache
 does not launch a CLI or send notifications. Write errors appear in the panel;
 current data remains in memory.
 
+## App updates
+
+The native app checks Zamok's stable channel once at startup. Check failures do
+not interrupt quota readings; use **Check for updates** in the panel to retry.
+Download an available update explicitly, then confirm installation and restart.
+Downloads are verified against the pinned public key and the signed app version.
+Active quota readers finish cancellation and CLI cleanup before installation.
+Use the installed Windows application for managed updates; replace a portable
+executable manually. Development builds are for local use.
+App update messages currently use English; quota and settings translations remain available.
+
 ## Notifications on macOS
 
 Notifications are optional and disabled by default. Each provider has usage
@@ -155,11 +166,17 @@ describes earlier versions.
 
 ## Storage and privacy
 
-Official CLIs handle authorization, requests, and token storage. KnowYourLimits
+Official CLIs handle provider authorization, requests, and token storage. KnowYourLimits
 does not open their credential or cookie files. The CLI itself can read its own
 configuration and credentials, refresh authorization or caches, and perform
 network activity. Claude's safe mode still permits administrator-managed policy
 hooks. A quota reading is therefore not a promise of zero CLI side effects.
+
+App update checks contact `zamok01.bshk.app` with app version, operating system,
+architecture, and the stable channel. The server receives ordinary connection
+metadata such as the IP address. No provider credentials, quota readings, or
+account identity are included. Downloads contact Zamok's artifact storage only
+when requested. Updates require no Zamok sign-in or license.
 
 | Platform | App data directory |
 | --- | --- |

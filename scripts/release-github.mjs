@@ -17,7 +17,7 @@ if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository || '')) {
 const tag = `v${info.version}`;
 const publish = args.includes('--publish');
 const env = { ...process.env, KYL_RELEASE_TAG: tag };
-const command = [join(root, 'scripts/publish-release.mjs'), ...(publish ? [] : ['--draft'])];
+const command = [join(root, 'scripts/publish-release.mjs'), '--draft'];
 console.log(
   `${publish ? 'Publish' : 'Draft'} ${repository} ${tag}: macOS DMG + Windows EXEs + manifests + SHA256SUMS.txt.`,
 );
@@ -36,5 +36,17 @@ if (args.includes('--dry-run')) {
     throw new Error('Download Windows artifacts built from this exact tag before releasing.');
   }
   execFileSync('bun', ['run', 'package:macos'], { cwd: root, stdio: 'inherit' });
+  execFileSync('bun', [join(root, 'scripts/sign-updates.mjs')], { cwd: root, stdio: 'inherit' });
   execFileSync(process.execPath, command, { cwd: root, env, stdio: 'inherit' });
+  execFileSync(process.execPath, [join(root, 'scripts/zamok-distribution.mjs'), '--stage'], {
+    cwd: root,
+    env,
+    stdio: 'inherit',
+  });
+  if (publish)
+    execFileSync(process.execPath, [join(root, 'scripts/zamok-distribution.mjs'), '--promote'], {
+      cwd: root,
+      env,
+      stdio: 'inherit',
+    });
 }

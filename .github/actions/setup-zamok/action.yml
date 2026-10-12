@@ -1,0 +1,18 @@
+name: Set up Zamok distribution tools
+description: Install a checksum-pinned Zamok CLI and the updater signature verifier
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        ZAMOK_VERSION: 1.10.1
+        ZAMOK_SHA256: f227c8b546f85b3f88ab541190516e6218dadff4f6ad8ff3d12a10d3a58101d2
+      run: |
+        curl --fail --silent --show-error --location \
+          "https://github.com/bshk-app/homebrew-tap/releases/download/zamokctl-${ZAMOK_VERSION}/zamokctl-${ZAMOK_VERSION}-macos-arm64.tar.gz" \
+          --output "$RUNNER_TEMP/zamokctl.tar.gz"
+        printf '%s  %s\n' "$ZAMOK_SHA256" "$RUNNER_TEMP/zamokctl.tar.gz" | shasum -a 256 --check
+        mkdir -p "$RUNNER_TEMP/zamok-bin"
+        tar -xzf "$RUNNER_TEMP/zamokctl.tar.gz" -C "$RUNNER_TEMP/zamok-bin"
+        echo "$RUNNER_TEMP/zamok-bin" >> "$GITHUB_PATH"
+        brew list minisign >/dev/null 2>&1 || brew install minisign

@@ -8,7 +8,7 @@
 
 See your remaining coding quota in the macOS menu bar or Windows tray, with usage and reset times one click away.
 
-macOS 13+ · Apple Silicon &nbsp; | &nbsp; Windows 10/11 · x64 &nbsp; | &nbsp; Source version **0.2.6**
+macOS 13+ · Apple Silicon &nbsp; | &nbsp; Windows 10/11 · x64 &nbsp; | &nbsp; Source version **0.2.7** <!-- x-release-please-version -->
 
 [Quick tour](#quick-tour) · [Installation](#installation) · [First use](#first-use) · [User guide](docs/usage.md) · [Development](docs/development.md)
 
@@ -22,6 +22,7 @@ macOS 13+ · Apple Silicon &nbsp; | &nbsp; Windows 10/11 · x64 &nbsp; | &nbsp; 
 - **Remaining quota outside, used quota inside.** Indicators summarize the lowest remaining quota across primary windows. Open the panel for each window's usage and reset time.
 - **Refresh on your schedule.** Choose manual updates, fixed intervals, or adaptive 5–15 minute updates. Connections and the last readings persist between launches.
 - **Make it yours.** Choose provider order, symbols, colors, and sizes. The interface supports 25 languages: Russian and the 24 official EU languages.
+- **Verified app updates.** Check the stable channel, download a signed update, and explicitly install and restart.
 
 | | macOS | Windows |
 | --- | --- | --- |
@@ -67,7 +68,8 @@ bun run tauri dev
 
 The configured packaging pipeline produces a Developer ID signed, notarized,
 stapled DMG for Apple Silicon Macs, plus a Windows installer and portable
-executable. Windows packages currently have no Authenticode signature. See
+executable. Both updater packages have version-bound signatures; Windows
+executables currently have no Authenticode publisher signature. See
 [local packaging](docs/development.md#packaging) for output paths and requirements.
 Intel Macs and Windows ARM64 are not release targets.
 
@@ -84,11 +86,11 @@ notification setup. Automatic startup is not implemented.
 
 - Values are observations, not a prediction of how many prompts remain. After five minutes, the last reading stays visible as historical data: `~` in menu bar text/tooltips and dashed rings on Windows. `—` means unknown or disconnected, not zero. An elapsed reset time does not create a new measurement.
 - Claude requires the pinned CLI's undocumented machine format. When its usage endpoint returns HTTP 429, the app can make a minimal **paid Haiku request** to recover plan windows from response headers. Review the [cost and retry behavior](docs/usage.md#claude-rate-limits-and-cost) before enabling frequent updates.
-- Official CLIs handle authorization, network requests, and token storage. KnowYourLimits does not open their credential or cookie files. It saves settings, normalized quota snapshots, connections, and retry deadlines locally; no tokens, cookies, or raw CLI logs enter that cache. [Storage and privacy details](docs/usage.md#storage-and-privacy) explain the CLI's own side effects.
+- Official CLIs handle provider authorization, network requests, and token storage. KnowYourLimits does not open their credential or cookie files. It saves settings, normalized quota snapshots, connections, and retry deadlines locally; no tokens, cookies, or raw CLI logs enter that cache. App update checks contact Zamok with version, platform, and architecture. [Storage and privacy details](docs/usage.md#storage-and-privacy) explain network activity and CLI side effects.
 
 ## Documentation
 
 - [User guide](docs/usage.md) — readings, settings, refresh behavior, and troubleshooting.
 - [Developer guide](docs/development.md) — setup, native builds, checks, and explicit live readings.
 - [Release setup and publishing](docs/publishing.md) — package verification and the configured release workflow.
-- [0.2.6 release notes](docs/releases/0.2.6.md) — Windows taskbar theme and icon changes.
+- [0.2.7 release notes](docs/releases/0.2.7.md) — signed updates, Homebrew, and release distribution.

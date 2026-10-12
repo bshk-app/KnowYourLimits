@@ -12,6 +12,7 @@ mod process;
 mod storage;
 #[cfg(target_os = "macos")]
 pub mod tray_render;
+pub mod updates;
 #[cfg(all(test, windows))]
 mod windows_tests;
 pub mod windows_tray;
@@ -637,8 +638,71 @@ fn startup_state(settings: Settings) -> AppState {
     AppState::disconnected(settings)
 }
 
+#[tauri::command]
+fn get_update_state(app: AppHandle) -> updates::UpdateState {
+    app.state::<updates::Updates>().snapshot()
+}
+#[tauri::command]
+async fn check_for_updates(app: AppHandle) -> Result<updates::UpdateState, updates::Notice> {
+    app.state::<updates::Updates>().check(true).await
+}
+#[tauri::command]
+async fn download_update(app: AppHandle) -> Result<updates::UpdateState, updates::Notice> {
+    app.state::<updates::Updates>().download().await
+}
+#[tauri::command]
+async fn cancel_update_download(app: AppHandle) -> updates::UpdateState {
+    app.state::<updates::Updates>().cancel_download().await
+}
+#[tauri::command]
+async fn install_update(
+    app: AppHandle,
+    confirmed: bool,
+) -> Result<updates::UpdateState, updates::Notice> {
+    let coordinator = app.state::<RuntimeState>().coordinator.clone();
+    let handle = app.clone();
+    app.state::<updates::Updates>()
+        .install(confirmed, coordinator, move || async move {
+            // Restart exit events cannot be postponed by Tauri's prevent_exit. Drain first.
+            drain_quota_runtime(&handle).await;
+            if handle.state::<updates::Updates>().prepare_restart() {
+                handle.state::<RuntimeState>().exit.finish();
+                handle.request_restart();
+            }
+        })
+        .await
+}
+
+async fn drain_quota_runtime(handle: &AppHandle) {
+    let background = handle
+        .state::<RuntimeState>()
+        .background
+        .lock()
+        .expect("background ticker")
+        .take();
+    if let Some(background) = background {
+        let _ = background.cancel.try_send(());
+        let _ = background.handle.await;
+    }
+    handle.state::<RuntimeState>().coordinator.shutdown().await;
+    #[cfg(unix)]
+    {
+        let signals = handle
+            .state::<RuntimeState>()
+            .signals
+            .lock()
+            .expect("shutdown signals")
+            .take();
+        if let Some(signals) = signals {
+            let _ = signals.cancel.try_send(());
+            let _ = signals.handle.await;
+        }
+    }
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             // Return from the Windows activation message before touching the webview.
             let handle = app.clone();
@@ -758,6 +822,10 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 rendering: Mutex::new(None),
             });
+            let publisher = app.handle().clone();
+            app.manage(updates::Updates::new(app.handle(), move |state| {
+                let _ = publisher.emit("updates-changed", state);
+            }));
             // Install handlers only after their callback's managed state exists.
             #[cfg(unix)]
             {
@@ -909,6 +977,10 @@ pub fn run() {
                     handle: task,
                 });
             }
+            let updates = app.state::<updates::Updates>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = updates.check(false).await;
+            });
             Ok(())
         })
         // The panel is reused; the settings window closes for real.
@@ -942,7 +1014,12 @@ pub fn run() {
             test_notification,
             hide_panel,
             open_settings,
-            fit_panel
+            fit_panel,
+            get_update_state,
+            check_for_updates,
+            download_update,
+            cancel_update_download,
+            install_update
         ])
         .build(app_context())
         .expect("failed to build KnowYourLimits");
@@ -954,36 +1031,12 @@ pub fn run() {
             }
             api.prevent_exit();
             runtime.coordinator.request_stop();
+            app.state::<updates::Updates>().request_stop();
             if runtime.exit.begin() {
-                let coordinator = runtime.coordinator.clone();
                 let handle = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    {
-                        let background = handle
-                            .state::<RuntimeState>()
-                            .background
-                            .lock()
-                            .expect("background ticker")
-                            .take();
-                        if let Some(background) = background {
-                            let _ = background.cancel.try_send(());
-                            let _ = background.handle.await;
-                        }
-                    }
-                    coordinator.shutdown().await;
-                    #[cfg(unix)]
-                    {
-                        let signals = handle
-                            .state::<RuntimeState>()
-                            .signals
-                            .lock()
-                            .expect("shutdown signals")
-                            .take();
-                        if let Some(signals) = signals {
-                            let _ = signals.cancel.try_send(());
-                            let _ = signals.handle.await;
-                        }
-                    }
+                    handle.state::<updates::Updates>().shutdown().await;
+                    drain_quota_runtime(&handle).await;
                     handle.state::<RuntimeState>().exit.finish();
                     handle.exit(code.unwrap_or(0));
                 });

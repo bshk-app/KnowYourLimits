@@ -1,9 +1,22 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const root = fileURLToPath(new URL('..', import.meta.url));
+
+export function changelogNotes(changelog, version) {
+  const escaped = version.replaceAll('.', '\\.');
+  const header = new RegExp(`^## (?:\\[${escaped}\\]|${escaped}(?=\\s|$))[^\\n]*$`, 'm').exec(
+    changelog,
+  );
+  if (!header) throw new Error(`Missing changelog section for ${version}.`);
+  const remainder = changelog.slice(header.index + header[0].length);
+  const next = remainder.search(/^## /m);
+  const body = (next < 0 ? remainder : remainder.slice(0, next)).trim();
+  if (!body) throw new Error(`Empty changelog section for ${version}.`);
+  return `# ${version} — Release notes\n\n${body}\n`;
+}
 
 export function readReleaseInfo(directory = root) {
   const pkg = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
@@ -18,9 +31,16 @@ export function readReleaseInfo(directory = root) {
   if (pkg.version !== tauri.version || pkg.version !== cargoVersion) {
     throw new Error('Versions in package.json, tauri.conf.json and Cargo.toml must match.');
   }
-  const notes = join(directory, 'docs/releases', `${pkg.version}.md`);
-  if (!readFileSync(notes, 'utf8').startsWith(`# ${pkg.version} `)) {
-    throw new Error(`Release notes must start with "# ${pkg.version} ".`);
+  let notes = join(directory, 'docs/releases', `${pkg.version}.md`);
+  let notesMarkdown;
+  if (existsSync(notes)) {
+    notesMarkdown = readFileSync(notes, 'utf8');
+    if (!notesMarkdown.startsWith(`# ${pkg.version} `)) {
+      throw new Error(`Release notes must start with "# ${pkg.version} ".`);
+    }
+  } else {
+    notes = join(directory, 'CHANGELOG.md');
+    notesMarkdown = changelogNotes(readFileSync(notes, 'utf8'), pkg.version);
   }
   return {
     version: pkg.version,
@@ -30,6 +50,7 @@ export function readReleaseInfo(directory = root) {
     output: join(directory, 'artifacts/macos', pkg.version),
     windowsOutput: join(directory, 'artifacts/windows', pkg.version),
     notes,
+    notesMarkdown,
   };
 }
 

@@ -15,7 +15,13 @@ declare global {
     nativeMock: {
       emit: (state: AppState) => void;
       emitTab: (tab: string) => void;
-      calls: { command: string; provider?: ProviderId; tab?: string; height?: number }[];
+      calls: {
+        command: string;
+        event?: string;
+        provider?: ProviderId;
+        tab?: string;
+        height?: number;
+      }[];
       hold: (command: string) => void;
       fail: (command: string) => void;
       release: (command: string) => void;
@@ -50,7 +56,13 @@ async function mockNative(
       const callbacks = new Map<number, (event: unknown) => void>();
       const handlers = new Map<string, number>();
       let callbackId = 0;
-      const calls: { command: string; provider?: ProviderId; tab?: string; height?: number }[] = [];
+      const calls: {
+        command: string;
+        event?: string;
+        provider?: ProviderId;
+        tab?: string;
+        height?: number;
+      }[] = [];
       const held = new Set<string>();
       const failed = new Set<string>();
       const pending = new Map<string, () => void>();
@@ -96,7 +108,13 @@ async function mockNative(
               height?: number;
             } = {},
           ) => {
-            calls.push({ command, provider: args.provider, tab: args.tab, height: args.height });
+            calls.push({
+              command,
+              event: args.event,
+              provider: args.provider,
+              tab: args.tab,
+              height: args.height,
+            });
             if (failed.has(command)) throw new Error('SYNTHETIC_PRIVATE');
             if (command === 'request_notification_permission') return true;
             if (['test_notification', 'open_settings', 'fit_panel'].includes(command)) return;
@@ -187,7 +205,16 @@ test('startup has two real connections and empty counters', async ({ page }) => 
   await expect(page.getByRole('button', { name: 'Connect Claude', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Connect Codex', exact: true })).toBeEnabled();
   expect(
-    await page.evaluate(() => window.nativeMock.calls.slice(0, 2).map((c) => c.command)),
+    await page.evaluate(() =>
+      window.nativeMock.calls
+        .filter(
+          (c) =>
+            c.command === 'get_state' ||
+            (c.command === 'plugin:event|listen' && c.event === 'state-changed'),
+        )
+        .slice(0, 2)
+        .map((c) => c.command),
+    ),
   ).toEqual(['plugin:event|listen', 'get_state']);
 });
 test('last percentages remain visible as the manual snapshot ages and after reopening', async ({

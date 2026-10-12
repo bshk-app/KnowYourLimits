@@ -1,0 +1,7 @@
+{
+  "endpoint": "https://zamok01.bshk.app",
+  "product": "knowyourlimits",
+  "channel": "STABLE",
+  "tap": "bshk-app/homebrew-tap",
+  "repository": "bshk-app/KnowYourLimits"
+}

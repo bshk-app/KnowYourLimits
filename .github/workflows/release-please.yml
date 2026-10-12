@@ -1,0 +1,44 @@
+name: Release Please
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+      pr_created: ${{ steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs.pr }}
+    steps:
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+  check-release-pr:
+    needs: release-please
+    if: needs.release-please.outputs.pr_created == 'true' && needs.release-please.outputs.pr != ''
+    uses: ./.github/workflows/check.yml
+    permissions:
+      contents: read
+    with:
+      ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+  distribute:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag }}
+      publish: true
+    secrets: inherit

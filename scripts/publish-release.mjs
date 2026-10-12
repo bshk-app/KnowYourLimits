@@ -10,6 +10,7 @@ import {
   verifyMacOSManifest,
   verifyWindowsManifest,
 } from './release-common.mjs';
+import { verifyUpdaterArtifacts } from './updater-artifacts.mjs';
 
 export function publishRelease({
   info,
@@ -18,6 +19,7 @@ export function publishRelease({
   repository,
   gh,
   publish = true,
+  verifyUpdates = verifyUpdaterArtifacts,
   directory = join(root, 'artifacts/release', tag),
 }) {
   assertReleaseTag(info, tag);
@@ -26,6 +28,7 @@ export function publishRelease({
   }
   const verified = verifyWindowsManifest(info);
   const macos = verifyMacOSManifest(info);
+  const updates = verifyUpdates(info);
   const remote = JSON.parse(gh('api', `repos/${repository}/commits/${tag}`));
   if (
     remote.sha !== commit ||
@@ -52,7 +55,15 @@ export function publishRelease({
   const macosManifestName = `${info.name}-${info.version}-macos-arm64-manifest.json`;
   const macosManifestCopy = join(directory, macosManifestName);
   copyFileSync(macos.path, macosManifestCopy);
-  const files = [...verified.files, macos.artifact, manifestCopy, macosManifestCopy];
+  const files = [
+    ...new Set([
+      ...verified.files,
+      macos.artifact,
+      ...updates.flatMap((update) => [update.artifact, update.signature]),
+      manifestCopy,
+      macosManifestCopy,
+    ]),
+  ];
   const digest = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
   const checksums = join(directory, 'SHA256SUMS.txt');
   writeFileSync(checksums, files.map((path) => `${digest(path)}  ${basename(path)}\n`).join(''));
@@ -60,7 +71,7 @@ export function publishRelease({
   const notes = join(directory, 'release-notes.md');
   writeFileSync(
     notes,
-    `${readFileSync(info.notes, 'utf8').trim()}\n\n` +
+    `${(info.notesMarkdown ?? readFileSync(info.notes, 'utf8')).trim()}\n\n` +
       '## Downloads\n\n' +
       `- Windows installer: \`${info.name}-${info.version}-windows-x64-setup.exe\`.\n` +
       `- Windows portable executable: \`${info.name}-${info.version}-windows-x64.exe\`.\n` +
@@ -68,6 +79,7 @@ export function publishRelease({
       '- Windows binaries do not yet have an Authenticode signature.\n' +
       `- macOS ${info.minMacOS}+ on Apple Silicon: \`${macos.manifest.artifact}\`.\n` +
       '- The macOS app and DMG are Developer ID signed, notarized, and stapled.\n' +
+      '- Both updater packages have version-bound Minisign signatures verified by the app.\n' +
       '- Verify downloads using SHA256SUMS.txt.\n\n' +
       `Both platform builds use source commit: ${commit}.\n`,
   );
@@ -167,7 +179,7 @@ function main() {
     tag,
     commit,
     repository: process.env.KYL_GITHUB_REPOSITORY,
-    publish: !args.includes('--draft'),
+    publish: false,
     gh: (...args) =>
       execFileSync('gh', args, {
         cwd: root,

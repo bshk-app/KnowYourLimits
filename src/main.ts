@@ -33,6 +33,7 @@ import {
   trayTitle,
 } from './model';
 import { providerSymbol, renderTray } from './tray';
+import { mountUpdates } from './update-ui';
 
 const app = element('#app');
 app.innerHTML = `
@@ -110,6 +111,7 @@ let focusPending = false;
 let hidePending = false;
 let commandError: string | null = null;
 let subscriptionNotice: string | null = null;
+let installingUpdate = false;
 
 function showSettings(tab: SettingsTab) {
   openSettings(tab).catch((error) => {
@@ -175,6 +177,11 @@ for (const id of PROVIDER_IDS) {
     age,
   });
 }
+
+mountUpdates(panel, (installing) => {
+  installingUpdate = installing;
+  renderControls();
+});
 
 function createWindow(view: CardView): WindowView {
   const root = node('div', 'kyl-window');
@@ -432,6 +439,9 @@ function renderControls() {
       isProviderPaused(state, id) ||
       (state.refreshing === null ? busy : state.refreshing !== id);
   retryButton.disabled = busy;
+  if (installingUpdate) {
+    for (const view of cards.values()) view.action.disabled = true;
+  }
 }
 
 function applyState(next: AppState) {

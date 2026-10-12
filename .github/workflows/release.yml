@@ -10,7 +10,25 @@ on:
         required: true
         type: string
       publish:
-        description: Publish the verified release (off leaves a draft)
+        description: Publish after building and verifying drafts (off leaves drafts)
+        required: false
+        default: false
+        type: boolean
+      promote:
+        description: Promote existing verified drafts without rebuilding
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      publish:
+        required: false
+        default: false
+        type: boolean
+      promote:
         required: false
         default: false
         type: boolean
@@ -19,7 +37,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ inputs.tag || github.ref_name }}
+  group: release-distribution
   cancel-in-progress: false
 
 jobs:
@@ -48,19 +66,24 @@ jobs:
           NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
           NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          ZAMOK_API_KEY: ${{ secrets.ZAMOK_API_KEY }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
           # shellcheck disable=SC2016
           node --input-type=module -e '
-            const required = ["DEVELOPER_ID_P12", "DEVELOPER_ID_P12_PASSWORD", "NOTARY_KEY_P8", "NOTARY_KEY_ID", "NOTARY_ISSUER"];
+            const required = ["DEVELOPER_ID_P12", "DEVELOPER_ID_P12_PASSWORD", "NOTARY_KEY_P8", "NOTARY_KEY_ID", "NOTARY_ISSUER", "TAURI_SIGNING_PRIVATE_KEY", "ZAMOK_API_KEY", "TAP_GITHUB_TOKEN"];
             const missing = required.filter(name => !process.env[name]);
             if (missing.length) throw new Error(`Missing repository secrets: ${missing.join(", ")}`);
           '
   checks:
+    if: ${{ !inputs.promote }}
     needs: validate
     uses: ./.github/workflows/check.yml
     with:
       ref: ${{ inputs.tag || github.ref }}
   macos:
+    if: ${{ !inputs.promote }}
     needs: [validate, checks]
     runs-on: macos-15
     timeout-minutes: 60
@@ -79,18 +102,7 @@ jobs:
         with:
           workspaces: src-tauri
       - run: bun install --frozen-lockfile
-      - name: Install pinned Zamok packaging tool
-        env:
-          ZAMOK_VERSION: 1.10.1
-          ZAMOK_SHA256: f227c8b546f85b3f88ab541190516e6218dadff4f6ad8ff3d12a10d3a58101d2
-        run: |
-          curl --fail --silent --show-error --location \
-            "https://github.com/bshk-app/homebrew-tap/releases/download/zamokctl-${ZAMOK_VERSION}/zamokctl-${ZAMOK_VERSION}-macos-arm64.tar.gz" \
-            --output "$RUNNER_TEMP/zamokctl.tar.gz"
-          printf '%s  %s\n' "$ZAMOK_SHA256" "$RUNNER_TEMP/zamokctl.tar.gz" | shasum -a 256 --check
-          mkdir -p "$RUNNER_TEMP/zamok-bin"
-          tar -xzf "$RUNNER_TEMP/zamokctl.tar.gz" -C "$RUNNER_TEMP/zamok-bin"
-          echo "$RUNNER_TEMP/zamok-bin" >> "$GITHUB_PATH"
+      - uses: ./.github/actions/setup-zamok
       - name: Import Developer ID into a temporary Keychain
         env:
           DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
@@ -127,6 +139,15 @@ jobs:
           APPLE_API_KEY: ${{ secrets.NOTARY_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.NOTARY_ISSUER }}
         run: bun run package:macos:ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: KnowYourLimits-windows-x64
+          path: artifacts/windows
+      - name: Sign both updater packages after final macOS notarization
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+        run: bun scripts/sign-updates.mjs
       - name: Attach the verified DMG and manifest
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -134,6 +155,13 @@ jobs:
           path: |
             artifacts/macos/*/*.dmg
             artifacts/macos/*/manifest.json
+            artifacts/macos/*/*.app.tar.gz
+            artifacts/macos/*/*.sig
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: KnowYourLimits-windows-x64-release
+          path: artifacts/windows/*/*
           if-no-files-found: error
       - name: Remove temporary Apple credentials
         if: always()
@@ -141,8 +169,9 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/DeveloperIDCA.cer"
           security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true
   publish:
+    if: ${{ !inputs.promote }}
     needs: [validate, checks, macos]
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     timeout-minutes: 10
     permissions:
       contents: write
@@ -153,21 +182,40 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: KnowYourLimits-windows-x64
+          name: KnowYourLimits-windows-x64-release
           path: artifacts/windows
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: KnowYourLimits-macos-arm64
           path: artifacts/macos
+      - uses: ./.github/actions/setup-zamok
       - name: Verify and publish both platforms
         env:
           GH_TOKEN: ${{ github.token }}
           KYL_GITHUB_REPOSITORY: ${{ github.repository }}
           KYL_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-          KYL_PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+          ZAMOK_API_KEY: ${{ secrets.ZAMOK_API_KEY }}
         run: |
-          if [ "$KYL_PUBLISH" = true ]; then
-            node scripts/publish-release.mjs
-          else
-            node scripts/publish-release.mjs --draft
-          fi
+          node scripts/publish-release.mjs --draft
+          node scripts/zamok-distribution.mjs --stage
+  promote:
+    if: ${{ always() && needs.validate.result == 'success' && (inputs.promote || (inputs.publish && needs.publish.result == 'success')) }}
+    needs: [validate, publish]
+    runs-on: macos-15
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-zamok
+      - name: Promote original signed bytes and verify all distribution surfaces
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KYL_GITHUB_REPOSITORY: ${{ github.repository }}
+          KYL_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          ZAMOK_API_KEY: ${{ secrets.ZAMOK_API_KEY }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: node scripts/zamok-distribution.mjs --promote

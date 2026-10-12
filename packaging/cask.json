@@ -1,0 +1,17 @@
+{
+  "token": "knowyourlimits",
+  "name": "KnowYourLimits",
+  "desc": "Claude and Codex usage limits in the menu bar",
+  "homepage": "https://github.com/bshk-app/KnowYourLimits",
+  "appBundle": "KnowYourLimits.app",
+  "dependsOnMacOS": true,
+  "autoUpdates": true,
+  "livecheck": false,
+  "caveats": "This build requires Apple Silicon. Intel Macs are not supported.",
+  "uninstall": { "quit": "dev.knowyourlimits.desktop" },
+  "zapTrash": [
+    "~/Library/Application Support/dev.knowyourlimits.desktop",
+    "~/Library/Caches/dev.knowyourlimits.desktop",
+    "~/Library/Preferences/dev.knowyourlimits.desktop.plist"
+  ]
+}

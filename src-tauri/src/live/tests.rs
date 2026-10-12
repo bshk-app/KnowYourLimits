@@ -1026,3 +1026,38 @@ async fn auto_timer_polls_every_five_minutes_after_panel_use_else_fifteen() {
     );
     coordinator.shutdown().await;
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn updater_suspension_waits_for_cleanup_and_resumes_only_after_guard_drop() {
+    let (coordinator, control) = controlled();
+    coordinator.read_quota(ProviderId::Codex).await.unwrap();
+    control.started.notified().await;
+    let pausing = coordinator.clone();
+    let pause = tokio::spawn(async move { pausing.suspend_for_update().await });
+    control.cancelled.notified().await;
+    assert!(
+        !pause.is_finished(),
+        "installer must wait for owned CLI cleanup"
+    );
+    control.cleanup.notify_one();
+    let guard = pause.await.unwrap().unwrap();
+    assert!(coordinator.read_quota(ProviderId::Claude).await.is_err());
+    assert!(coordinator.snapshot().refreshing.is_none());
+    assert_eq!(control.calls.load(Ordering::SeqCst), 1);
+    drop(guard);
+    coordinator.read_quota(ProviderId::Claude).await.unwrap();
+    control.started.notified().await;
+    assert_eq!(control.calls.load(Ordering::SeqCst), 2);
+    control.cleanup.notify_one();
+    coordinator.shutdown().await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn dropping_updater_suspension_never_revives_real_shutdown() {
+    let (coordinator, control) = controlled();
+    let guard = coordinator.suspend_for_update().await.unwrap();
+    coordinator.shutdown().await;
+    drop(guard);
+    assert!(coordinator.read_quota(ProviderId::Codex).await.is_err());
+    assert_eq!(control.calls.load(Ordering::SeqCst), 0);
+}

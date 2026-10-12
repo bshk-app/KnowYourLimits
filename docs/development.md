@@ -192,16 +192,17 @@ bun install --frozen-lockfile
 bun run package:windows
 ```
 
-For version 0.2.6, output in `artifacts/windows/0.2.6/` is:
+For version 0.2.7, output in `artifacts/windows/0.2.7/` is:
 
-- `KnowYourLimits-0.2.6-windows-x64-setup.exe` — installer for the current user;
+- `KnowYourLimits-0.2.7-windows-x64-setup.exe` — installer for the current user;
   installs WebView2 if needed.
-- `KnowYourLimits-0.2.6-windows-x64.exe` — portable executable; requires WebView2.
+- `KnowYourLimits-0.2.7-windows-x64.exe` — portable executable; requires WebView2.
 - `manifest.json` — version, source commit, sizes, SHA-256, and signing status.
 
 Windows executables currently lack an Authenticode signature. GitHub Actions
 retains platform packages as workflow artifacts; configured tag releases combine
-them with the macOS package and checksums after verification.
+them with the macOS package, version-bound updater signatures, and checksums
+after verification. Promotion also publishes Homebrew and the Zamok stable feed.
 
 ### macOS
 

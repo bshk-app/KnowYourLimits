@@ -5,6 +5,7 @@ import {
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -16,6 +17,7 @@ import { after, test } from 'node:test';
 import { publishRelease } from './publish-release.mjs';
 import {
   assertReleaseTag,
+  changelogNotes,
   notaryOptions,
   readReleaseInfo,
   root,
@@ -23,6 +25,7 @@ import {
   verifyManifest,
   verifyWindowsManifest,
 } from './release-common.mjs';
+import { restoreRelease } from './restore-release.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'kyl-release-test-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -75,6 +78,30 @@ test('release metadata rejects notes for a different version', () => {
   const { directory } = fixture();
   writeFileSync(join(directory, 'docs/releases/1.2.3.md'), '# 1.2.2 — Example\n');
   assert.throws(() => readReleaseInfo(directory), /Release notes/);
+});
+
+test('automated releases extract only the exact version changelog section', () => {
+  const changelog =
+    '# Changelog\n\n## [1.2.30] — Later\n\nOther changes.\n\n## [1.2.3](https://example.test/compare) (2026-10-12)\n\n### Features\n\n- Signed updates.\n\n## [1.2.2] — Earlier\n\nOld changes.\n';
+  assert.equal(
+    changelogNotes(changelog, '1.2.3'),
+    '# 1.2.3 — Release notes\n\n### Features\n\n- Signed updates.\n',
+  );
+  assert.throws(() => changelogNotes(changelog, '1.2.4'), /Missing changelog/);
+  assert.throws(
+    () => changelogNotes('## [1.2.3]\n\n## [1.2.2]\nOld changes.', '1.2.3'),
+    /Empty changelog/,
+  );
+});
+
+test('release metadata uses changelog when there are no curated version notes', () => {
+  const f = fixture();
+  rmSync(f.info.notes);
+  writeFileSync(join(f.directory, 'CHANGELOG.md'), '# Changelog\n\n## [1.2.3]\n\n- New release.\n');
+  assert.equal(
+    readReleaseInfo(f.directory).notesMarkdown,
+    '# 1.2.3 — Release notes\n\n- New release.\n',
+  );
 });
 
 test('notarization can use a profile in a separate Keychain', () => {
@@ -338,6 +365,7 @@ function publicationFixture(options = {}) {
     commit: 'a'.repeat(40),
     repository: 'example/KnowYourLimits',
     directory,
+    verifyUpdates: () => [],
     gh(...args) {
       calls.push(args);
       if (args[0] === 'api') return JSON.stringify({ sha: options.remoteCommit || input.commit });
@@ -442,5 +470,71 @@ test('publication refuses to mix artifacts from another commit or a moved remote
     }
     assert.throws(() => publishRelease(source.input), /both platform builds must match/);
     assert.ok(!source.calls.some((args) => args[0] === 'release'));
+  }
+});
+
+function promotionFixture({
+  corrupt = false,
+  unexpected = false,
+  sourceCommit = 'a'.repeat(40),
+} = {}) {
+  const f = publicationFixture();
+  const prefix = `${f.input.info.name}-${f.input.info.version}`;
+  const extra = [
+    join(f.input.info.output, `${prefix}-macos-arm64.app.tar.gz`),
+    join(f.input.info.output, `${prefix}-macos-arm64.app.tar.gz.sig`),
+    join(f.input.info.windowsOutput, `${prefix}-windows-x64-setup.exe.sig`),
+  ];
+  for (const path of extra) writeFileSync(path, `promotion test ${basename(path)}`);
+  f.input.verifyUpdates = () => [
+    { artifact: extra[0], signature: extra[1] },
+    {
+      artifact: join(f.input.info.windowsOutput, `${prefix}-windows-x64-setup.exe`),
+      signature: extra[2],
+    },
+  ];
+  publishRelease({ ...f.input, publish: false });
+  const calls = [];
+  const gh = (...args) => {
+    calls.push(args);
+    if (args[0] === 'api') return JSON.stringify({ sha: sourceCommit });
+    assert.equal(args[1], 'download');
+    const output = args[args.indexOf('--dir') + 1];
+    const original = join(f.input.directory, 'downloaded');
+    for (const name of readdirSync(original))
+      copyFileSync(join(original, name), join(output, name));
+    if (corrupt) writeFileSync(join(output, basename(extra[0])), 'changed archive');
+    if (unexpected) writeFileSync(join(output, 'unknown.exe'), 'unexpected download');
+    return '';
+  };
+  const git = (...args) => (args[0] === 'status' ? '' : f.input.commit);
+  return {
+    input: {
+      info: f.input.info,
+      tag: f.input.tag,
+      repository: f.input.repository,
+      gh,
+      git,
+      verifyUpdates: f.input.verifyUpdates,
+      directory: mkdtempSync(join(scratch, 'restore-')),
+    },
+    calls,
+  };
+}
+
+test('promotion restores nine original assets and never uploads or rebuilds', () => {
+  const f = promotionFixture();
+  restoreRelease(f.input);
+  assert.ok(f.calls.every((args) => args[0] === 'api' || args[1] === 'download'));
+});
+
+test('promotion rejects altered bytes, extra assets and moved remote tags', () => {
+  for (const options of [
+    { corrupt: true },
+    { unexpected: true },
+    { sourceCommit: 'b'.repeat(40) },
+  ]) {
+    const f = promotionFixture(options);
+    assert.throws(() => restoreRelease(f.input), /checksum mismatch|nine verified|exact/);
   }
 });

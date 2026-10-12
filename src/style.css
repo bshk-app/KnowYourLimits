@@ -537,6 +537,37 @@ fieldset {
   justify-content: flex-end;
   gap: 8px;
 }
+.kyl-updates {
+  padding: 10px 15px 14px;
+  border-top: 1px solid var(--line);
+}
+.kyl-update-status {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.kyl-update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.kyl-update-progress {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.kyl-update-confirm {
+  margin-top: 10px;
+}
+.kyl-update-confirm p {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0 0 8px;
+}
+.kyl-update-confirm button {
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
 .kyl-input,
 .kyl-select {
   min-height: 22px;

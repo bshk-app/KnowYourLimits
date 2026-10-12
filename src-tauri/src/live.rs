@@ -73,6 +73,7 @@ struct Core {
     // handle holds it through cleanup, so shutdown can never miss that job.
     transition: AsyncMutex<()>,
     stopping: AtomicBool,
+    update_suspended: AtomicBool,
     retry_path: Option<std::path::PathBuf>,
     quota_path: Option<std::path::PathBuf>,
     reuse: [std::time::Duration; 2],
@@ -121,6 +122,7 @@ impl Coordinator {
             notify: Arc::new(|_| {}),
             transition: AsyncMutex::new(()),
             stopping: AtomicBool::new(false),
+            update_suspended: AtomicBool::new(false),
             retry_path: None,
             quota_path: None,
             reuse: [std::time::Duration::ZERO; 2],
@@ -227,7 +229,7 @@ impl Coordinator {
         let transition = self.0.transition.lock().await;
         {
             let inner = self.0.inner.lock().expect("coordinator state");
-            if self.is_stopping() {
+            if self.is_stopping() || self.0.update_suspended.load(Ordering::SeqCst) {
                 return Err(STOPPING.into());
             }
             let now = Instant::now();
@@ -253,7 +255,7 @@ impl Coordinator {
         self.cancel_and_join().await;
         let state = {
             let mut inner = self.0.inner.lock().expect("coordinator state");
-            if self.is_stopping() {
+            if self.is_stopping() || self.0.update_suspended.load(Ordering::SeqCst) {
                 return Err(STOPPING.into());
             }
             if !inner.state.connected.contains(&provider) {
@@ -529,6 +531,34 @@ impl Coordinator {
         };
         drop(_transition);
         (self.0.publish)(state);
+    }
+
+    /// Block new CLI launches and await the existing owned reader's cleanup.
+    /// The guard resumes readings if installation fails; real shutdown stays final.
+    pub(crate) async fn suspend_for_update(&self) -> Result<UpdateSuspension, String> {
+        let _transition = self.0.transition.lock().await;
+        if self.is_stopping() || self.0.update_suspended.swap(true, Ordering::SeqCst) {
+            return Err(STOPPING.into());
+        }
+        let suspension = UpdateSuspension(self.clone());
+        self.cancel_and_join().await;
+        let state = {
+            let mut inner = self.0.inner.lock().expect("coordinator state");
+            inner.state.refreshing = None;
+            inner.state.signing_in = false;
+            inner.state.revision += 1;
+            wake_waiters(&mut inner);
+            inner.state.clone()
+        };
+        (self.0.publish)(state);
+        Ok(suspension)
+    }
+}
+
+pub(crate) struct UpdateSuspension(Coordinator);
+impl Drop for UpdateSuspension {
+    fn drop(&mut self) {
+        self.0 .0.update_suspended.store(false, Ordering::SeqCst);
     }
 }
 fn due_provider(inner: &Inner, now: Instant) -> Option<ProviderId> {

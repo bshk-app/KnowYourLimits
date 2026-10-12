@@ -1,6 +1,6 @@
 {
   "name": "knowyourlimits",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:release": "node --test scripts/release.test.mjs",
+    "test:release": "node --test scripts/release.test.mjs scripts/distribution.test.mjs",
     "check:release": "bun scripts/check-release.mjs",
     "check": "biome check .",
     "format": "biome check --write .",
@@ -19,7 +19,8 @@
     "package:macos": "bun scripts/package-macos.mjs",
     "package:macos:ci": "bun scripts/package-macos-ci.mjs",
     "package:windows": "bun scripts/package-windows.mjs",
-    "release:github": "bun scripts/release-github.mjs"
+    "release:github": "bun scripts/release-github.mjs",
+    "release": "bun scripts/release-zamok.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.2"

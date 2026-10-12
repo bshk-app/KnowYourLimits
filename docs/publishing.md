@@ -1,208 +1,141 @@
 # Publishing KnowYourLimits
 
-Repository: [bshk-app/KnowYourLimits](https://github.com/bshk-app/KnowYourLimits).
-The `Release` workflow builds Windows 10/11 x64 executables and a signed,
-notarized DMG for macOS 13+ on Apple Silicon, then publishes them together.
+One release distributes macOS 13+ on Apple Silicon and Windows 10/11 x64 through
+[GitHub Releases](https://github.com/bshk-app/KnowYourLimits/releases), Homebrew
+(`bshk-app/tap/knowyourlimits`), and Zamok's public stable updater.
 
-## Configure GitHub Actions
+## Release commands
 
-The workflow uses the same Apple secret names as Murmator. As checked on
-October 12, 2026, all five required secrets already exist in the `bshk-app`
-organization with visibility `all`; KnowYourLimits is a public repository.
-Their values were neither read nor copied during this setup.
+Release Please maintains a version/changelog PR from conventional commits
+(`feat:`, `fix:`). It updates package.json, Tauri config, Cargo.toml, and only
+the KnowYourLimits package in Cargo.lock. Review and merge that PR to create a
+version tag and GitHub draft; the same workflow then builds, verifies, and
+publishes GitHub, Homebrew, and the stable updater. It calls the reusable release
+workflow and PR checks directly because GITHUB_TOKEN events do not trigger a
+second workflow. Future release notes use the matching CHANGELOG.md section; a curated
+`docs/releases/<version>.md` takes precedence.
 
-| Secret | Value |
-| --- | --- |
-| `DEVELOPER_ID_P12` | Base64 of a Developer ID Application `.p12` export, including its private key. |
-| `DEVELOPER_ID_P12_PASSWORD` | Password protecting that `.p12` export. |
-| `NOTARY_KEY_P8` | Base64 of the App Store Connect `.p8` private key. |
-| `NOTARY_KEY_ID` | App Store Connect key ID. |
-| `NOTARY_ISSUER` | App Store Connect issuer ID. |
-| `RELEASE_SIGNING_IDENTITY_SHA1` | Optional signing fingerprint override; defaults to `packaging/macos.json`. |
-
-Export the Developer ID Application certificate and private key using Keychain
-Access on a Mac. The `.p12` must contain exactly one valid Developer ID
-Application signing identity. For a repository outside the organization, generate
-its base64 locally and configure the five required Actions secrets:
-
-```sh
-openssl base64 -A -in /path/to/developer-id.p12 -out /tmp/kyl-certificate-base64.txt
-```
-
-Paste the file contents into the `DEVELOPER_ID_P12` secret and remove the local
-temporary file afterward. Add the App Store Connect key and its identifiers from
-the Apple account authorized to notarize this application. Keep all private keys
-outside the repository.
-
-GitHub's built-in `GITHUB_TOKEN` handles release publication. The workflow grants
-`contents: write` only to the final publication job. No personal access token or
-permanent runner Keychain is required. It installs Zamok 1.10.1 from a pinned,
-SHA-256 verified archive. The signing job imports the certificate and Apple's
-Developer ID intermediate CA into a temporary Keychain, creates a private
-temporary `.p8` file, and removes credentials in an `always()` cleanup step.
-
-The validation job checks for all five secrets before starting platform checks.
-Ordinary pushes and pull requests run `Check` without any Apple credentials.
-
-## Reference release processes
-
-The setup was compared with Murmator's `scripts/release.sh` and
-`.github/workflows/release.yml` at commit
-`b46ca9f7f60de66c7ebadf92b42bb0145d26c83e` in `/Volumes/DATA/Murmur`, and
-Tish's `.gitea/workflows/release-tish-win.yml` at commit
-`f964619d820e1dda87921e2710d795b57dfef7f2` in `tishina/monorepo`
-(local worktree `/Volumes/DATA/tishina-monorepo-worktrees/tish-nc-windows-release`).
-
-Murmator supplies the separate Zamok signing/notarization step, temporary
-Keychain, shared credential names, and draft publication sequence. Tish supplies
-the tag/version checks, installable build artifacts, and verification after
-upload. KnowYourLimits builds Windows natively in GitHub Actions; it does not
-need Tish's models, sidecars, or cross-compilation container. GitHub supports the
-v4 artifact actions used here. KnowYourLimits has no updater, so neither
-Sparkle nor Tauri updater keys or a Zamok product registration are needed.
-
-## Create a release
-
-Commit the workflow changes before releasing. The version must match in
-`package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`; update the
-package version in `src-tauri/Cargo.lock` too. Write English release notes in
-`docs/releases/<version>.md`, starting with `# <version> `.
-
-Use a new stable `x.y.z` version for changes after an existing version tag. The
-existing `v0.2.6` tag predates the combined Windows/macOS workflow; create a new
-version and tag for the first combined release.
+Commit matching versions in `package.json`, `src-tauri/tauri.conf.json`,
+`src-tauri/Cargo.toml`, and the application entry in `src-tauri/Cargo.lock`.
+Add English notes in `docs/releases/<version>.md`, starting with `# <version> `.
+Push the source and a new annotated `v<version>` tag. Never move an existing tag.
 
 ```sh
 bun run check:release
 bun run test:release
-git add .
-git commit -m "Prepare Windows and macOS release"
-git push origin main
-kyl_release_version=0.2.7
-git tag -a "v$kyl_release_version" -m "KnowYourLimits $kyl_release_version"
-git push origin "v$kyl_release_version"
+git tag -a v0.2.7 -m "KnowYourLimits 0.2.7"
+git push origin v0.2.7
 ```
 
-Set `kyl_release_version` to the version committed in the metadata. A push of a `v*`
-tag starts `Release` and publishes after verification. For a reviewable draft,
-use **Actions → Release → Run workflow**, supply an existing version tag, and
-leave `publish` off. Set `publish` on to publish after verification. The same
-manual entry point can resume a failed draft. Branch names and tags that do not
-match the committed version are rejected.
+The tag starts `Release` and creates verified **drafts** in GitHub and Zamok.
+It does not offer an update or publish a cask. `bun run release --draft` requests
+this workflow for an existing tag. The first live run of a new distribution path
+must remain a draft until its signed files are checked.
 
-To publish an already verified draft without rebuilding its signed bytes:
+From a checkout of that version tag:
 
 ```sh
-gh release edit vX.Y.Z --repo bshk-app/KnowYourLimits --draft=false --latest
+bun run release --promote
 ```
 
-The workflow:
+This dispatches the workflow with `promote=true`. It downloads and verifies the
+original GitHub files, checks Zamok's hosted updater bytes, publishes GitHub,
+publishes and audits Homebrew through `zamokctl cask`, then publishes the stable
+updater. No rebuilding or re-signing occurs. An older version cannot replace a
+newer stable release. Release runs are serialized. For subsequent releases,
+`bun run release --publish` (`publish=true`) builds, verifies drafts, and promotes
+in one workflow invocation.
 
-1. Validates the tag, release metadata, and required Apple secrets.
-2. Reuses `Check`: scans Git history for secrets; runs TypeScript/Biome, frontend
-   and release tests, Rust tests/fmt/Clippy on both platforms, and Playwright on
-   macOS; builds the Windows NSIS installer and macOS `.app`.
-3. Builds the macOS app on the `macos-15` ARM64 runner. Tauri creates the bundle;
-   Zamok signs it with hardened runtime, notarizes it, staples Apple's ticket,
-   and packages a signed, notarized, stapled DMG. The packaging script verifies
-   both the app and DMG with `codesign`, `stapler`, and Gatekeeper. Apple variables
-   are excluded from Tauri's build environment so notarization runs through Zamok.
-4. Downloads both platform artifacts from the same workflow run. Verifies their
-   versions, architectures, source commits, expected filenames, sizes, and SHA-256.
-5. Creates or resumes a draft release, uploads all assets, verifies their names
-   and sizes, downloads them again, and compares their SHA-256 before publication.
-   A failed build, upload, or download verification cannot publish a partial
-   release. An already public release is never overwritten.
+## Credentials and configuration
 
-The published release contains six files:
+Existing organization secrets are reused:
 
-| File | Purpose |
+| Secret | Purpose |
 | --- | --- |
-| `KnowYourLimits-<version>-windows-x64-setup.exe` | NSIS installer for the current Windows user; installs WebView2 if needed. |
-| `KnowYourLimits-<version>-windows-x64.exe` | Portable Windows executable. |
-| `KnowYourLimits-<version>-windows-x64-manifest.json` | Windows version, source commit, sizes, hashes, and signing status. |
-| `KnowYourLimits-<version>-macos-arm64.dmg` | Developer ID signed, notarized, and stapled macOS installer image. |
-| `KnowYourLimits-<version>-macos-arm64-manifest.json` | macOS version, source commit, size, hash, and signing/notarization status. |
-| `SHA256SUMS.txt` | SHA-256 for all three downloadable binaries and both manifests. |
+| `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD` | Developer ID certificate and private key. |
+| `NOTARY_KEY_P8`, `NOTARY_KEY_ID`, `NOTARY_ISSUER` | App Store Connect notarization. |
+| `TAP_GITHUB_TOKEN` | Write access to `bshk-app/homebrew-tap`. |
+| `RELEASE_SIGNING_IDENTITY_SHA1` | Optional override for the public identity in `packaging/macos.json`. |
 
-Windows executables currently do not have an Authenticode signature. macOS
-publication requires successful Developer ID signing, notarization, and stapling.
-Intel Macs and Windows ARM64 are not release targets.
+Repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `ZAMOK_API_KEY` support the
+updater. The first is a dedicated KnowYourLimits Minisign key; the second reuses
+the existing Zamok automation credential. The public key is pinned in
+`tauri.conf.json`. Ordinary branch and pull-request checks need no release secrets.
+Keep the private updater key backed up: replacing the public key without a
+transition signed by the old key prevents existing installations from updating.
+The current key has no password; its file and Actions secret are access-controlled.
 
-## Local Windows packaging
+[`packaging/zamok.json`](../packaging/zamok.json) names product `knowyourlimits`,
+channel `STABLE`, endpoint `https://zamok01.bshk.app`, the repository, and tap.
+[`packaging/cask.json`](../packaging/cask.json) holds Homebrew metadata. Updates
+require no license or account. The cask uses the Zamok CLI; this Tauri-only
+product does not use the server's Sparkle cask generator.
 
-```powershell
-bun install --frozen-lockfile
-bun run package:windows
-```
+## Build and verification
 
-Files appear in `artifacts/windows/<version>/` alongside `manifest.json`. Local
-packaging allows uncommitted changes, but records `sourceDirty: true`; publication
-rejects these manifests. Public releases use artifacts built from a clean tag in
-GitHub Actions. Changes to the source or HEAD during packaging are also recorded
-as dirty builds.
+The workflow validates tag/version consistency and credentials before native
+checks. `Check` scans Git history, runs frontend/release/Rust tests, formatting,
+Clippy on both platforms, macOS Playwright, and builds Windows NSIS.
 
-## Local macOS packaging
+Tauri builds an unsigned macOS app. Checksum-pinned Zamok 1.10.1 signs,
+notarizes, staples, and packages the final app and DMG. The script verifies
+`codesign`, `stapler`, and Gatekeeper. Apple credentials use a temporary Keychain
+and files removed after the signing job.
 
-The existing `bun run package:macos` command uses Zamok, a Developer ID identity in
-Keychain, and the `notarize` Keychain profile or an App Store Connect API key.
-Public local signing settings live in `packaging/macos.json`. Override the
-identity using `KYL_SIGNING_IDENTITY_SHA1` and the profile using
-`KYL_NOTARY_PROFILE`; use `KYL_NOTARY_KEYCHAIN` for a separate Keychain.
+`sign-updates.mjs` archives the **final signed and stapled app**, then signs that
+archive and the Windows installer with `tauri signer sign --app-version`.
+Minisign verifies their signatures and authenticated version comments against the
+pinned public key. The app requires version-bound signatures.
 
-```sh
-xcrun notarytool store-credentials notarize
-bun run package:macos
-```
+The publisher verifies platforms, versions, source commits, clean-build state,
+filenames, sizes, and SHA-256. GitHub draft files are downloaded again and hashed.
+Zamok uses presigned uploads and Tauri finalize with `publish=false`; hosted files
+are downloaded and compared before promotion. Public updater endpoints must
+return the expected version, signature and URL for an older client, and HTTP 204
+for the current version.
 
-The command checks notarization access, builds the Tauri app, runs Zamok packaging,
-and verifies the manifest, SHA-256, signature, stapling, and Gatekeeper assessment.
-Output is in `artifacts/macos/<version>/`.
+## Distribution files
 
-The same packaging path can use `APPLE_API_KEY_PATH`, `APPLE_API_KEY`, and
-`APPLE_API_ISSUER` together instead of a Keychain profile. The CI entry point
-additionally requires a clean checkout and verifies the resulting source commit:
+Nine files are published:
 
-```sh
-bun run package:macos:ci
-```
+| Suffix after `KnowYourLimits-<version>` | Purpose |
+| --- | --- |
+| `-windows-x64-setup.exe` | Per-user NSIS installer and Windows updater. |
+| `-windows-x64-setup.exe.sig` | Version-bound updater signature. |
+| `-windows-x64.exe` | Portable executable for manual replacement. |
+| `-windows-x64-manifest.json` | Windows provenance, hashes, and updater metadata. |
+| `-macos-arm64.dmg` | Signed, notarized, stapled installer and Homebrew download. |
+| `-macos-arm64.app.tar.gz` | Final signed, stapled app for the updater. |
+| `-macos-arm64.app.tar.gz.sig` | Version-bound updater signature. |
+| `-macos-arm64-manifest.json` | macOS provenance, hashes, and signing metadata. |
+| `SHA256SUMS.txt` (without prefix) | Hashes of the eight other files. |
 
-`package:macos --skip-build` is useful for inspecting an existing bundle, but its
-manifest is marked dirty because the bundle's source commit cannot be established.
+Windows has updater signatures; its executables lack an Authenticode publisher
+signature. macOS has Apple signing/notarization and updater signatures. Intel
+Macs and Windows ARM64 are not distribution targets.
 
-`bun run release:github` uses the same combined publisher as CI. It requires a
-clean checkout of the exact version tag, GitHub CLI authorization, and Windows
-artifacts built from that commit. Download them from the corresponding Actions run:
+## Recovery
 
-```sh
-gh run download RUN_ID --repo bshk-app/KnowYourLimits \
-  --name KnowYourLimits-windows-x64 --dir artifacts/windows
-export KYL_GITHUB_REPOSITORY=bshk-app/KnowYourLimits
-bun run release:github --dry-run
-bun run release:github
-# Publish immediately after verification:
-bun run release:github --publish
-```
+Failed builds/uploads leave drafts. A draft consumes its version/channel;
+staging can reuse it only if hosted bytes match exactly. Do not rebuild a verified
+draft: Developer ID timestamps change signed bytes. If promotion fails after
+GitHub becomes public, run `release --promote` again. It verifies immutable files,
+retries Homebrew, and offers the update only after Homebrew succeeds. It can also
+recheck already-published updater endpoints. Use a new version for changed files.
+`gh release edit` alone skips Homebrew and updater publication.
 
-The command always rebuilds macOS, verifies both platforms, and creates a verified
-draft by default. It uses the active `gh auth login` session or `GH_TOKEN`.
+## Local packaging
 
-## Source files and secrets
+On Windows, `bun run package:windows` writes installer, executable, and manifest
+to `artifacts/windows/<version>/`. On an ARM64 Mac, `bun run package:macos` writes
+a verified DMG and final app staging directory to `artifacts/macos/<version>/`.
+Developer ID and the `notarize` Keychain profile are required. Overrides:
+`KYL_SIGNING_IDENTITY_SHA1`, `KYL_NOTARY_PROFILE`, `KYL_NOTARY_KEYCHAIN`, or all of
+`APPLE_API_KEY_PATH`, `APPLE_API_KEY`, and `APPLE_API_ISSUER`. Dirty builds and
+`package:macos --skip-build` are local-only. `package:macos:ci` requires a clean
+source commit. Keep private keys, settings and CLI authorization out of Git.
 
-Commit source, tests, documentation, icons, configuration, and lockfiles. Keep
-dependencies, generated artifacts, `.env` files, private signing keys, agent
-settings, and application state out of Git; `.gitignore` covers these files.
-Do not force-add them. Gitleaks scans Git history using a pinned binary and
-verified SHA-256.
-
-The installer does not contain CLI authorization, settings, or quota data from
-the build machine. The application uses the official Claude Code and Codex CLIs
-for authorization and never opens their credential or cookie files.
-
-Developer ID fingerprints, Team IDs, and Keychain profile names are public
-identifiers; they do not grant access to private keys or Apple accounts.
-
-References: [Tauri GitHub pipeline](https://v2.tauri.app/distribute/pipelines/github/),
-[Tauri macOS signing and notarization](https://v2.tauri.app/distribute/sign/macos/),
-[GitHub certificate import](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications),
-[GitHub CLI release creation](https://cli.github.com/manual/gh_release_create).
+References: [Tauri updater](https://v2.tauri.app/plugin/updater/),
+[Tauri macOS signing](https://v2.tauri.app/distribute/sign/macos/), and
+[GitHub release CLI](https://cli.github.com/manual/gh_release_create).
+Version automation follows [Release Please](https://github.com/googleapis/release-please-action).
