@@ -211,6 +211,8 @@ jobs:
           ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
       - uses: ./.github/actions/setup-zamok
+      - name: Install the tap required by Homebrew audit
+        run: brew tap bshk-app/tap
       - name: Promote original signed bytes and verify all distribution surfaces
         env:
           GH_TOKEN: ${{ github.token }}
