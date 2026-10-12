@@ -1,0 +1,8 @@
+.hyperframes/
+.thumbnails/
+renders/
+snapshots/
+teaser/snapshots/
+covers/*/snapshots/
+*.log
+**/check.json

@@ -1,0 +1,92 @@
+{
+  "outputs": [
+    {
+      "path": "overview.png",
+      "sizeBytes": 123479,
+      "sha256": "392c7e982f599237f5a762be89ef84c4968bab64fbec04ac0c83b944e980055d",
+      "metadata": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "png",
+            "codec_type": "video",
+            "width": 1600,
+            "height": 960,
+            "r_frame_rate": "25/1"
+          }
+        ],
+        "format": {
+          "size": "123479"
+        }
+      }
+    },
+    {
+      "path": "settings.png",
+      "sizeBytes": 139954,
+      "sha256": "77023d4b86d81aed7f47a9e428aac91b4c34fa3d5abe53fe388a1f4acb7279e6",
+      "metadata": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "png",
+            "codec_type": "video",
+            "width": 1600,
+            "height": 960,
+            "r_frame_rate": "25/1"
+          }
+        ],
+        "format": {
+          "size": "139954"
+        }
+      }
+    },
+    {
+      "path": "tutorial.mp4",
+      "sizeBytes": 3361396,
+      "sha256": "48c908ba9c0cf35a686cce52be96d573815312350a930ed32a7bfa2587ca5b6c",
+      "metadata": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 1920,
+            "height": 1080,
+            "r_frame_rate": "30/1",
+            "nb_frames": "1379"
+          }
+        ],
+        "format": {
+          "duration": "45.966667",
+          "size": "3361396"
+        }
+      }
+    },
+    {
+      "path": "tutorial-preview.gif",
+      "sizeBytes": 578027,
+      "sha256": "6269f5f91000651954aa5da276a9021fcfa46fd6299618df7ac22bb4c50e2d29",
+      "metadata": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "gif",
+            "codec_type": "video",
+            "width": 960,
+            "height": 540,
+            "r_frame_rate": "8/1",
+            "nb_frames": "56"
+          }
+        ],
+        "format": {
+          "duration": "7.010000",
+          "size": "578027"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "status": "verified-source-ranges",
+  "fps": 30,
+  "scenes": [
+    {
+      "id": "intro",
+      "chapter": "01",
+      "label": "A quick introduction",
+      "title": "Know your limits.",
+      "body": "Claude and Codex quota, one click away.",
+      "note": "A native macOS walkthrough",
+      "duration": 6,
+      "image": "panel.png"
+    },
+    {
+      "id": "limits",
+      "chapter": "02",
+      "label": "Read your limits",
+      "title": "Remaining at a glance.",
+      "body": "Open the panel for used quota and reset times when available.",
+      "note": "Remaining in the menu bar · Used in the cards",
+      "duration": 2,
+      "clips": [
+        {
+          "file": "panel.mp4",
+          "start": 0,
+          "duration": 2,
+          "mediaStart": 0,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "refresh",
+      "chapter": "03",
+      "label": "Update a provider",
+      "title": "Update independently.",
+      "body": "Select Update on the provider you want to refresh.",
+      "note": "Old values remain visible while the reading finishes",
+      "duration": 4.966667,
+      "clips": [
+        {
+          "file": "panel.mp4",
+          "start": 0,
+          "duration": 4.966667,
+          "mediaStart": 2,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "layouts",
+      "chapter": "04",
+      "label": "Menu bar appearance",
+      "title": "Choose your layout.",
+      "body": "Preview One row, Two rows, and Rings.",
+      "note": "This recording returns to Two rows.",
+      "duration": 12,
+      "clips": [
+        {
+          "file": "settings-layout.mp4",
+          "start": 0,
+          "duration": 12,
+          "mediaStart": 0,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "rhythm",
+      "chapter": "05",
+      "label": "Claude and Codex preferences",
+      "title": "Separate settings.",
+      "body": "Choose appearance and update intervals independently.",
+      "note": "Size changes here. Auto-update and alerts stay Off.",
+      "duration": 15,
+      "clips": [
+        {
+          "file": "settings-claude.mp4",
+          "start": 0,
+          "duration": 7.5,
+          "mediaStart": 0,
+          "verified": true
+        },
+        {
+          "file": "settings-codex.mp4",
+          "start": 7.5,
+          "duration": 7.5,
+          "mediaStart": 0,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "chapter": "06",
+      "label": "Back to work",
+      "title": "Stay in your flow.",
+      "body": "Your last readings stay close. Update when you need a new measurement.",
+      "note": "KnowYourLimits · Claude + Codex",
+      "duration": 6,
+      "image": "panel.png"
+    }
+  ],
+  "captureState": {
+    "source": "assets/panel.png",
+    "claudeRemaining": 53,
+    "claudeWeeklyUsed": 47,
+    "claudeFiveHourUsed": 1,
+    "claudeFiveHourReset": "4 hr 55 min",
+    "codexRemaining": 80,
+    "codexWeeklyUsed": 20
+  },
+  "totalDuration": 45.966667,
+  "sourceRangesVerifiedBy": "Parent Cap export metadata and actual capture log"
+}

@@ -1,0 +1,54 @@
+{
+  "inputs": [
+    {
+      "path": "assets/app.svg",
+      "sizeBytes": 1393,
+      "sha256": "b0a759e232c6e3690672b66748346a13b16fed645c8472f7120702e9edccfb8a"
+    },
+    {
+      "path": "assets/gsap.min.js",
+      "sizeBytes": 72777,
+      "sha256": "19e3ad578c9c583ddf9bdca2ad87bb55c3d70b331058e28abacab898f799b2ee"
+    },
+    {
+      "path": "assets/fonts/inter-variable.woff2",
+      "sizeBytes": 27708,
+      "sha256": "779821c86789ed36b544d9b82ad74cfdfe0bfd50363b81be9b3e692ede83f16b"
+    },
+    {
+      "path": "assets/fonts/OFL.txt",
+      "sizeBytes": 4380,
+      "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+    },
+    {
+      "path": "assets/settings-menu-bar.png",
+      "sizeBytes": 96123,
+      "sha256": "dfac8ccce516f667794b26d83acb32fb5a14e112677f0c1010a7711c64d055ad"
+    },
+    {
+      "path": "assets/panel.png",
+      "sizeBytes": 80040,
+      "sha256": "7c90b34485212b0383f536bd5727723f9d323e7ad2f98b4309295e4ac076902e"
+    },
+    {
+      "path": "assets/panel.mp4",
+      "sizeBytes": 748962,
+      "sha256": "31198b335867f0ec43412fef47d8af7f9c5386fa4da0654067cf08ef2441b049"
+    },
+    {
+      "path": "assets/settings-layout.mp4",
+      "sizeBytes": 83776,
+      "sha256": "407a02079673301323d9b1d6c1c832656724ef0d273f33bb54cd2a774c30c57d"
+    },
+    {
+      "path": "assets/settings-claude.mp4",
+      "sizeBytes": 115506,
+      "sha256": "37ca165fe60293652e87c3d9f1411e6774eabd6b9f727edf8294bbf2bee96309"
+    },
+    {
+      "path": "assets/settings-codex.mp4",
+      "sizeBytes": 112892,
+      "sha256": "828296ceb72b0dcf1f3f438791a1cb49aa9f215173c6fd11bbc224df50c4095b"
+    }
+  ]
+}

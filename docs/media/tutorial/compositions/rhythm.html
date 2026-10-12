@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><title>Claude and Codex preferences</title></head><body><template>
+<style>@font-face{font-family:"Inter";src:url("../assets/fonts/inter-variable.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:block}
+* { box-sizing:border-box; }
+#root { position:absolute; inset:0; width:100%; height:100%; overflow:hidden; font-family:"Inter",system-ui,sans-serif; color:#1C3434; }
+.paper { position:absolute; inset:0; background:#F5F3EC; }
+.topline { position:absolute; left:80px; right:80px; top:72px; height:74px; display:flex; align-items:center; justify-content:space-between; }
+.wordmark { display:flex; align-items:center; gap:22px; font-size:34px; font-weight:700; letter-spacing:-.7px; }
+.wordmark img { width:70px; height:70px; }
+.context { font-size:32px; color:#49615A; }
+.copy { position:absolute; left:96px; top:242px; width:664px; }
+.chapterline { display:flex; align-items:center; gap:22px; margin-bottom:38px; }
+.chapter { width:74px; height:74px; border-radius:22px; background:#8DDCB3; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:750; }
+.label { font-size:32px; color:#49615A; font-weight:550; }
+h1 { font-size:82px; font-weight:750; letter-spacing:-3.4px; line-height:1.04; max-width:664px; margin:0 0 32px; }
+.instruction { font-size:38px; line-height:1.37; max-width:630px; margin:0; }
+.note { font-size:32px; line-height:1.4; color:#49615A; max-width:620px; margin:38px 0 0; }
+.capture-zone { position:absolute; left:846px; top:158px; width:978px; height:806px; display:flex; align-items:center; justify-content:center; }
+.native-media { position:absolute; width:100%; height:100%; object-fit:contain; object-position:center; filter:none; }
+.capture-image { position:relative; z-index:1; width:100%; height:100%; object-fit:contain; }
+.capture-shadow { position:absolute; z-index:0; inset:30px; border-radius:42px; background:rgba(141,220,179,.19); }
+.footer { position:absolute; left:96px; width:664px; bottom:80px; display:flex; align-items:center; justify-content:space-between; gap:64px; }
+.footer-label { font-size:32px; color:#49615A; }
+.progress { width:460px; height:8px; background:rgba(28,52,52,.14); overflow:hidden; border-radius:8px; }
+.progress-fill { width:100%; height:100%; background:#1C3434; transform-origin:left center; }
+</style>
+<div id="root" data-composition-id="rhythm" data-width="1920" data-height="1080" data-duration="15">
+  <div class="paper"></div>
+  <header class="topline"><div class="wordmark"><img src="../assets/app.svg" alt=""><span>KnowYourLimits</span></div><span class="context">macOS walkthrough · 0.2.6</span></header>
+  <section class="copy">
+    <div class="chapterline"><div id="rhythm-number" class="chapter">05</div><div class="label">Claude and Codex preferences</div></div>
+    <div id="rhythm-copy"><h1>Separate settings.</h1><p class="instruction">Choose appearance and update intervals independently.</p><p class="note">Size changes here. Auto-update and alerts stay Off.</p></div>
+  </section>
+  <div class="capture-zone"><div class="capture-shadow" aria-hidden="true"></div><video id="rhythm-capture-0" class="clip native-media" src="../assets/settings-claude.mp4" muted playsinline preload="auto" data-start="0" data-duration="7.5" data-media-start="0" data-playback-rate="1" data-hf-media-start-basis="local" data-track-index="1"></video>
+<video id="rhythm-capture-1" class="clip native-media" src="../assets/settings-codex.mp4" muted playsinline preload="auto" data-start="7.5" data-duration="7.5" data-media-start="0" data-playback-rate="1" data-hf-media-start-basis="local" data-track-index="1"></video></div>
+  <footer class="footer"><span class="footer-label">05 / 06</span><div class="progress"><div id="rhythm-progress" class="progress-fill"></div></div></footer>
+</div>
+<script>
+const tl=gsap.timeline({paused:true});
+tl.fromTo('#rhythm-number',{scale:0,opacity:0},{scale:1,opacity:1,duration:.45,ease:'power3.out'},0);
+tl.fromTo('#rhythm-copy',{y:12,opacity:0},{y:0,opacity:1,duration:.45,ease:'power2.out'},.05);
+tl.fromTo('#rhythm-progress',{scaleX:0.6666666666666666},{scaleX:0.8333333333333334,duration:15,ease:'none'},0);
+window.__timelines['rhythm']=tl;
+</script>
+</template></body></html>
