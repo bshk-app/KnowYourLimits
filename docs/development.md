@@ -177,11 +177,12 @@ power loss do not provide graceful child-cleanup guarantees.
 
 ## Packaging
 
-The release workflow is configured. As of October 12, 2026, no releases have been
-published. Track [GitHub Releases](https://github.com/bshk-app/KnowYourLimits/releases).
+The release workflow publishes signed updater packages, the notarized macOS DMG,
+Homebrew, and the Zamok stable channel. Version 0.2.7 is available on
+[GitHub Releases](https://github.com/bshk-app/KnowYourLimits/releases/latest).
 The [publishing guide](publishing.md) covers tag/version validation, signing,
-artifact verification, and draft publication. The first combined Windows/macOS
-release needs a new version tag; the existing `v0.2.6` predates that workflow.
+artifact verification, and draft promotion. The earlier `v0.2.6` predates the
+combined signed updater and Homebrew workflow.
 
 ### Windows
 

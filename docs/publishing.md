@@ -15,6 +15,10 @@ workflow and PR checks directly because GITHUB_TOKEN events do not trigger a
 second workflow. Future release notes use the matching CHANGELOG.md section; a curated
 `docs/releases/<version>.md` takes precedence.
 
+Release Please owns the layout of its manifest and the Tauri version JSON.
+Biome checks their JSON syntax without reformatting those two generated files;
+release metadata and native permission tests validate their behavior.
+
 Commit matching versions in `package.json`, `src-tauri/tauri.conf.json`,
 `src-tauri/Cargo.toml`, and the application entry in `src-tauri/Cargo.lock`.
 Add English notes in `docs/releases/<version>.md`, starting with `# <version> `.

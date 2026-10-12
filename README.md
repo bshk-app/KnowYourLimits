@@ -54,23 +54,24 @@ details and the editable HyperFrames project.
 
 ## Installation
 
-> [!NOTE]
-> As of October 12, 2026, there are no published releases. Track the first tagged release on [GitHub Releases](https://github.com/bshk-app/KnowYourLimits/releases). Use a source build in the meantime.
-
-With the [platform build prerequisites](docs/development.md#prerequisites) installed:
+Install on an Apple Silicon Mac with Homebrew:
 
 ```sh
-git clone https://github.com/bshk-app/KnowYourLimits.git
-cd KnowYourLimits
-bun install --frozen-lockfile
-bun run tauri dev
+brew install --cask bshk-app/tap/knowyourlimits
 ```
 
-The configured packaging pipeline produces a Developer ID signed, notarized,
-stapled DMG for Apple Silicon Macs, plus a Windows installer and portable
-executable. Both updater packages have version-bound signatures; Windows
-executables currently have no Authenticode publisher signature. See
-[local packaging](docs/development.md#packaging) for output paths and requirements.
+For **Windows**, download the current-user installer from
+[the latest release](https://github.com/bshk-app/KnowYourLimits/releases/latest).
+It installs WebView2 if needed. The portable executable requires WebView2 and
+manual replacement when updating.
+
+You can also download the macOS DMG and drag the app to `/Applications`.
+macOS packages are Developer ID signed, notarized, and stapled. Both updater
+packages have version-bound signatures; Windows executables currently have no
+Authenticode publisher signature. Install **0.2.7 or later** once to enable
+managed app updates; the earlier 0.2.6 build has no updater.
+
+For source builds, see [development](docs/development.md#run-locally).
 Intel Macs and Windows ARM64 are not release targets.
 
 ## First use

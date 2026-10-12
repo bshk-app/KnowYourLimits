@@ -13,6 +13,12 @@
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "overrides": [
+    {
+      "includes": [".release-please-manifest.json", "src-tauri/tauri.conf.json"],
+      "formatter": { "enabled": false }
+    }
+  ],
   "javascript": { "formatter": { "quoteStyle": "single" } },
   "linter": { "rules": { "recommended": true } },
   "assist": { "actions": { "source": { "organizeImports": "on" } } }
