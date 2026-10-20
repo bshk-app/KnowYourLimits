@@ -306,10 +306,21 @@ impl Fake {
         ));
         fs::create_dir(&dir).unwrap();
         let executable = dir.join("synthetic-cli");
+        // End-to-end callers judge freshness by the wall clock, not `NOW`.
+        let mut response = response();
+        for (row, hours) in response["response"]["response"]["rate_limits"]["limits"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .zip([1, 24, 24])
+        {
+            let at = chrono::DateTime::from_timestamp_millis((now_ms() + hours * 3_600_000) as i64);
+            row["resets_at"] = json!(at.unwrap().to_rfc3339());
+        }
         let header = format!(
             "#!/usr/bin/python3\nMODE={mode:?}\nDIRECTORY={:?}\nRESPONSE={:?}\n",
             dir.to_str().unwrap(),
-            response().to_string()
+            response.to_string()
         );
         fs::write(&executable, header + SCRIPT).unwrap();
         fs::set_permissions(&executable, fs::Permissions::from_mode(0o700)).unwrap();

@@ -371,7 +371,7 @@ else:
         if MODE == 'group_error': print('invalid-json',flush=True)
         else:
             if MODE == 'stderr_ok': sys.stderr.write('x'*250000); sys.stderr.flush()
-            quota = {'primary':{'usedPercent':42,'windowDurationMins':10080,'resetsAt':1800000100},'accountId':'SYNTHETIC_PRIVATE_ID_EMAIL_TOKEN'}
+            quota = {'primary':{'usedPercent':42,'windowDurationMins':10080,'resetsAt':int(time.time())+86400},'accountId':'SYNTHETIC_PRIVATE_ID_EMAIL_TOKEN'}
             if MODE == 'no_quota': quota = {}
             if MODE == 'expired': quota['primary']['resetsAt'] = 1
             send({'id':2,'result':{'ordinaryUsageAllowed':MODE != 'permission_false','rateLimits':quota,'rateLimitsByLimitId':None}})
