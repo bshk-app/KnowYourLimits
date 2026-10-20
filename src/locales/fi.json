@@ -134,7 +134,7 @@
   "loginCodex": "Kirjaudu Codexiin ja päivitä.",
   "cancelled": "Päivitys peruutettu.",
   "cacheFailed": "Tallennettuja käyttötietoja ei voitu palauttaa. Päivitä saadaksesi uudet tiedot.",
-  "updateClaude": "Päivitä Claude Code versioon 2.1.296 ja yhdistä uudelleen.",
+  "updateClaude": "Päivitä Claude Code versioon 2.1.296 tai uudempaan ja yhdistä uudelleen.",
   "signInTimeout": "Kirjautuminen aikakatkaistiin. Yritä kirjautua uudelleen.",
   "errorCacheSave": "Käyttötietoja ei voitu tallentaa seuraavaa käynnistystä varten.",
   "errorPauseSave": "Pyyntöjen taukoa ei voitu tallentaa.",

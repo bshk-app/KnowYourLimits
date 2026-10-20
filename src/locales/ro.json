@@ -134,7 +134,7 @@
   "loginCodex": "Autentifică-te în Codex, apoi actualizează.",
   "cancelled": "Actualizare anulată.",
   "cacheFailed": "Utilizarea salvată nu a putut fi restabilită. Actualizează pentru date noi.",
-  "updateClaude": "Actualizează Claude Code la versiunea 2.1.296, apoi conectează din nou.",
+  "updateClaude": "Actualizează Claude Code la versiunea 2.1.296 sau mai nouă, apoi conectează din nou.",
   "signInTimeout": "Autentificarea a expirat. Încearcă să te autentifici din nou.",
   "errorCacheSave": "Utilizarea nu a putut fi salvată pentru următoarea pornire.",
   "errorPauseSave": "Pauza cererilor nu a putut fi salvată.",

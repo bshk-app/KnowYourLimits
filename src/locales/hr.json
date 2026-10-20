@@ -134,7 +134,7 @@
   "loginCodex": "Prijavite se u Codex pa ažurirajte.",
   "cancelled": "Ažuriranje je otkazano.",
   "cacheFailed": "Spremljena potrošnja nije se mogla obnoviti. Ažurirajte za nove podatke.",
-  "updateClaude": "Ažurirajte Claude Code na verziju 2.1.296 pa ponovno povežite račun.",
+  "updateClaude": "Ažurirajte Claude Code na verziju 2.1.296 ili noviju pa ponovno povežite račun.",
   "signInTimeout": "Vrijeme za prijavu je isteklo. Pokušajte se ponovno prijaviti.",
   "errorCacheSave": "Potrošnja se nije mogla spremiti za sljedeće pokretanje.",
   "errorPauseSave": "Pauza zahtjeva nije se mogla spremiti.",

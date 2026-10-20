@@ -134,7 +134,7 @@
   "loginCodex": "Prisijunkite prie Codex ir atnaujinkite.",
   "cancelled": "Atnaujinimas atšauktas.",
   "cacheFailed": "Nepavyko atkurti išsaugotų naudojimo duomenų. Atnaujinkite, kad gautumėte naujus duomenis.",
-  "updateClaude": "Atnaujinkite Claude Code į 2.1.296 versiją ir prijunkite dar kartą.",
+  "updateClaude": "Atnaujinkite Claude Code į 2.1.296 ar naujesnę versiją ir prijunkite dar kartą.",
   "signInTimeout": "Baigėsi prisijungimo laikas. Bandykite prisijungti dar kartą.",
   "errorCacheSave": "Nepavyko išsaugoti naudojimo duomenų kitam paleidimui.",
   "errorPauseSave": "Nepavyko išsaugoti užklausų pristabdymo.",

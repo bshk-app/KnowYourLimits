@@ -134,7 +134,7 @@
   "loginCodex": "Prijavite se v Codex in osvežite.",
   "cancelled": "Osveževanje preklicano.",
   "cacheFailed": "Shranjenih podatkov o porabi ni bilo mogoče obnoviti. Osvežite za nove podatke.",
-  "updateClaude": "Posodobite Claude Code na različico 2.1.296 in znova povežite.",
+  "updateClaude": "Posodobite Claude Code na različico 2.1.296 ali novejšo in znova povežite.",
   "signInTimeout": "Čas za prijavo je potekel. Poskusite se znova prijaviti.",
   "errorCacheSave": "Podatkov o porabi ni bilo mogoče shraniti za naslednji zagon.",
   "errorPauseSave": "Premora zahtev ni bilo mogoče shraniti.",

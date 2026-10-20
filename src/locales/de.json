@@ -134,7 +134,7 @@
   "loginCodex": "Bei Codex anmelden und aktualisieren.",
   "cancelled": "Aktualisierung abgebrochen.",
   "cacheFailed": "Gespeicherte Nutzung konnte nicht wiederhergestellt werden. Für neue Daten aktualisieren.",
-  "updateClaude": "Claude Code auf Version 2.1.296 aktualisieren und erneut verbinden.",
+  "updateClaude": "Claude Code auf Version 2.1.296 oder neuer aktualisieren und erneut verbinden.",
   "signInTimeout": "Zeitüberschreitung bei der Anmeldung. Erneut anmelden.",
   "errorCacheSave": "Nutzung konnte nicht für den nächsten Start gespeichert werden.",
   "errorPauseSave": "Anfragepause konnte nicht gespeichert werden.",

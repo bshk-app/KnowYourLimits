@@ -391,7 +391,7 @@ if phase == 'version':
     if MODE == 'version_flood':
         print('x'*5000,flush=True)
         while True: time.sleep(1)
-    print('2.1.295 (Claude Code)' if MODE == 'wrong_version' else '2.1.296 (Claude Code)',flush=True)
+    print({'wrong_version':'2.1.295','newer_version':'2.1.304'}.get(MODE,'2.1.296')+' (Claude Code)',flush=True)
     sys.exit(0)
 if phase == 'auth':
     if MODE == 'auth_cancel':
@@ -482,6 +482,37 @@ async fn unsupported_version_never_runs_quota_command() {
     );
     assert_eq!(fake.launches(), ["version"]);
     fake.cleaned("version").await;
+}
+#[tokio::test(flavor = "current_thread")]
+async fn newer_version_reads_quota() {
+    let fake = Fake::new("newer_version");
+    assert_eq!(fake_read(&fake).await.unwrap().windows.len(), 2);
+    assert_eq!(fake.launches(), ["version", "auth", "quota"]);
+    fake.cleaned("quota").await;
+}
+#[test]
+fn accepts_only_minimum_or_newer_claude_versions() {
+    for text in [
+        "2.1.296 (Claude Code)",
+        "2.1.304 (Claude Code)\n",
+        "2.2.0 (Claude Code)",
+        "3.0.0 (Claude Code)",
+    ] {
+        assert!(supported_version(text), "{text:?}");
+    }
+    for text in [
+        "",
+        "2.1.295 (Claude Code)",
+        "1.9.999 (Claude Code)",
+        "2.1.296",
+        "2.1.296 (Other)",
+        "2.1 (Claude Code)",
+        "2.1.296.1 (Claude Code)",
+        "v2.1.296 (Claude Code)",
+        "2.1.296-beta (Claude Code)",
+    ] {
+        assert!(!supported_version(text), "{text:?}");
+    }
 }
 #[tokio::test(flavor = "current_thread")]
 async fn canonical_version_target_survives_a_retargeted_install_symlink() {

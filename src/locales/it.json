@@ -134,7 +134,7 @@
   "loginCodex": "Accedi a Codex, poi aggiorna.",
   "cancelled": "Aggiornamento annullato.",
   "cacheFailed": "Impossibile ripristinare l’utilizzo salvato. Aggiorna per ottenere nuovi dati.",
-  "updateClaude": "Aggiorna Claude Code alla versione 2.1.296, poi collega di nuovo.",
+  "updateClaude": "Aggiorna Claude Code alla versione 2.1.296 o successiva, poi collega di nuovo.",
   "signInTimeout": "Tempo di accesso scaduto. Prova ad accedere di nuovo.",
   "errorCacheSave": "Impossibile salvare l’utilizzo per il prossimo avvio.",
   "errorPauseSave": "Impossibile salvare la pausa delle richieste.",

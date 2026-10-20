@@ -134,7 +134,7 @@
   "loginCodex": "Pierakstieties Codex un atjauniniet.",
   "cancelled": "Atjaunināšana atcelta.",
   "cacheFailed": "Neizdevās atjaunot saglabātos lietojuma datus. Atjauniniet, lai iegūtu jaunus datus.",
-  "updateClaude": "Atjauniniet Claude Code uz versiju 2.1.296 un pievienojiet vēlreiz.",
+  "updateClaude": "Atjauniniet Claude Code uz versiju 2.1.296 vai jaunāku un pievienojiet vēlreiz.",
   "signInTimeout": "Pierakstīšanās laiks beidzās. Mēģiniet pierakstīties vēlreiz.",
   "errorCacheSave": "Neizdevās saglabāt lietojuma datus nākamajai palaišanai.",
   "errorPauseSave": "Neizdevās saglabāt pieprasījumu pauzi.",

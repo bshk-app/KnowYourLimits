@@ -134,7 +134,7 @@
   "loginCodex": "Log ind på Codex, og opdater.",
   "cancelled": "Opdatering annulleret.",
   "cacheFailed": "Kunne ikke gendanne gemt forbrug. Opdater for at hente nye data.",
-  "updateClaude": "Opdater Claude Code til version 2.1.296, og forbind igen.",
+  "updateClaude": "Opdater Claude Code til version 2.1.296 eller nyere, og forbind igen.",
   "signInTimeout": "Login tog for lang tid. Prøv at logge ind igen.",
   "errorCacheSave": "Kunne ikke gemme forbrug til næste start.",
   "errorPauseSave": "Kunne ikke gemme pausen i forespørgsler.",

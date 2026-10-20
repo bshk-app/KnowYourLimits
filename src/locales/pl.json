@@ -134,7 +134,7 @@
   "loginCodex": "Zaloguj się do Codex i odśwież.",
   "cancelled": "Anulowano odświeżanie.",
   "cacheFailed": "Nie udało się przywrócić zapisanych danych użycia. Odśwież, aby pobrać nowe dane.",
-  "updateClaude": "Zaktualizuj Claude Code do wersji 2.1.296 i połącz ponownie.",
+  "updateClaude": "Zaktualizuj Claude Code do wersji 2.1.296 lub nowszej i połącz ponownie.",
   "signInTimeout": "Upłynął czas logowania. Spróbuj zalogować się ponownie.",
   "errorCacheSave": "Nie udało się zapisać danych użycia na następne uruchomienie.",
   "errorPauseSave": "Nie udało się zapisać wstrzymania żądań.",

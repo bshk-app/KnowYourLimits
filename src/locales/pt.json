@@ -134,7 +134,7 @@
   "loginCodex": "Inicie sessão no Codex e atualize.",
   "cancelled": "Atualização cancelada.",
   "cacheFailed": "Não foi possível restaurar a utilização guardada. Atualize para obter novos dados.",
-  "updateClaude": "Atualize o Claude Code para a versão 2.1.296 e volte a ligar.",
+  "updateClaude": "Atualize o Claude Code para a versão 2.1.296 ou posterior e volte a ligar.",
   "signInTimeout": "O início de sessão expirou. Tente iniciar sessão novamente.",
   "errorCacheSave": "Não foi possível guardar a utilização para o próximo arranque.",
   "errorPauseSave": "Não foi possível guardar a pausa dos pedidos.",

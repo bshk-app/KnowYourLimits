@@ -134,7 +134,7 @@
   "loginCodex": "Prihláste sa do Codex a aktualizujte.",
   "cancelled": "Aktualizácia zrušená.",
   "cacheFailed": "Uložené údaje o využití sa nepodarilo obnoviť. Aktualizujte, aby ste získali nové údaje.",
-  "updateClaude": "Aktualizujte Claude Code na verziu 2.1.296 a pripojte sa znova.",
+  "updateClaude": "Aktualizujte Claude Code na verziu 2.1.296 alebo novšiu a pripojte sa znova.",
   "signInTimeout": "Časový limit prihlásenia vypršal. Skúste sa prihlásiť znova.",
   "errorCacheSave": "Údaje o využití sa nepodarilo uložiť pre ďalšie spustenie.",
   "errorPauseSave": "Pozastavenie požiadaviek sa nepodarilo uložiť.",

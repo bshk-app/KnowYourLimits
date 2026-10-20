@@ -9,9 +9,9 @@ display demo or fabricated quotas.
 ## First use
 
 1. Install and authorize the official CLI for each provider you want to use.
-   Claude Code must be **2.1.296**; other versions are rejected. Codex uses its
-   own CLI sign-in. Windows requires native Windows CLIs and authorization;
-   signing in only through WSL does not authorize them.
+   Claude Code must be **2.1.296** or newer; older versions are rejected.
+   Codex uses its own CLI sign-in. Windows requires native Windows CLIs and
+   authorization; signing in only through WSL does not authorize them.
 2. Launch KnowYourLimits and left-click its menu bar or tray indicator to open
    the panel. Select **Connect Codex** or **Connect Claude**. Each provider
    connects and updates independently.
@@ -159,9 +159,11 @@ request directly. If usable headers are absent, the panel shows **Paused** and
 the retry time. Clicks and timers respect that deadline; the last snapshot and
 pause survive restarts.
 
-Supporting Claude Code **2.1.296** does not guarantee stability of its undocumented
-machine format. The [historical source investigation](claude-spike.md) explains
-why text percentages are not a reliable fallback; some of its integration status
+Claude Code **2.1.296** or newer is accepted, but its undocumented machine format
+may change in any release; an unexpected response is shown as unavailable or
+failed, never as guessed percentages. The
+[historical source investigation](claude-spike.md) explains why text
+percentages are not a reliable fallback; some of its integration status
 describes earlier versions.
 
 ## Storage and privacy
@@ -194,7 +196,7 @@ authorize or connect providers.
 | Symptom | Next step |
 | --- | --- |
 | CLI not found | Check the [discovery paths](development.md#cli-discovery) and use an official supported installation. The app does not run shell profiles. |
-| Claude version rejected | Install the required **2.1.296** version; a newer version is not automatically supported. |
+| Claude version rejected | Update Claude Code to **2.1.296** or newer. |
 | Sign-in required | Sign in with the provider's official CLI. For Claude, use the app's browser sign-in flow with a Claude subscription. |
 | Windows account still signed out | Authorize the native Windows CLI; WSL sign-in is separate. |
 | Usage unavailable or update failed | Check CLI authorization and network access, then update again. Historical values remain historical. |

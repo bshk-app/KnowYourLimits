@@ -10,7 +10,7 @@ fn main() {
     use tokio::signal::unix::{signal, SignalKind};
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     if !opted_in(&args) {
-        eprintln!("Usage: cargo run --locked --example claude_read -- --live <trusted-absolute-claude-path>\nExplicit opt-in: CLI-owned auth, policy, network/cache/activity operations. Requires Claude Code 2.1.296; no model query or PTY fallback.");
+        eprintln!("Usage: cargo run --locked --example claude_read -- --live <trusted-absolute-claude-path>\nExplicit opt-in: CLI-owned auth, policy, network/cache/activity operations. Requires Claude Code 2.1.296 or newer; no model query or PTY fallback.");
         std::process::exit(
             if args.len() == 1 && (args[0] == "--help" || args[0] == "-h") {
                 0

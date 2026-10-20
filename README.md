@@ -76,7 +76,7 @@ Intel Macs and Windows ARM64 are not release targets.
 
 ## First use
 
-1. **Prepare your CLI.** Install and sign in to the official Codex CLI or Claude Code **2.1.296**. On Windows, use a native Windows installation and sign-in; WSL authorization is separate.
+1. **Prepare your CLI.** Install and sign in to the official Codex CLI or Claude Code **2.1.296** or newer. On Windows, use a native Windows installation and sign-in; WSL authorization is separate.
 2. **Connect your provider.** Open the panel and select **Connect Codex** or **Connect Claude**. If Claude needs authorization, select **Sign in to Claude** and finish in the browser.
 3. **Read and customize.** Check usage and reset times, select **Update** for a new reading, and open the gear to choose appearance and update intervals. Automatic quota refresh and notifications start off.
 

@@ -15,10 +15,10 @@ English. Product translations belong in locale resources.
 | Windows | Windows 10/11 x64; Visual Studio Build Tools with **Desktop development with C++**, Rust 1.90+, Bun, Git, and WebView2 Runtime. |
 
 For real readings, install and authorize the official Codex CLI or Claude Code
-**2.1.296** on the same operating system as the app. Windows supports native
-executables and official npm installations with Node.js. WSL authorization does
-not authorize native Windows CLIs. Intel Macs and Windows ARM64 are not release
-targets.
+**2.1.296** or newer on the same operating system as the app. Windows supports
+native executables and official npm installations with Node.js. WSL
+authorization does not authorize native Windows CLIs. Intel Macs and Windows
+ARM64 are not release targets.
 
 Signing credentials and Zamok are needed for signed macOS packaging, not for
 ordinary development. See [packaging](#packaging).

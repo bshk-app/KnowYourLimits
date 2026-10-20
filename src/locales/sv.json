@@ -134,7 +134,7 @@
   "loginCodex": "Logga in på Codex och uppdatera.",
   "cancelled": "Uppdateringen avbruten.",
   "cacheFailed": "Kunde inte återställa sparad användning. Uppdatera för att hämta nya data.",
-  "updateClaude": "Uppdatera Claude Code till version 2.1.296 och anslut igen.",
+  "updateClaude": "Uppdatera Claude Code till version 2.1.296 eller senare och anslut igen.",
   "signInTimeout": "Inloggningen tog för lång tid. Försök logga in igen.",
   "errorCacheSave": "Kunde inte spara användning till nästa start.",
   "errorPauseSave": "Kunde inte spara pausen för förfrågningar.",

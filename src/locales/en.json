@@ -134,7 +134,7 @@
   "loginCodex": "Sign in to Codex, then update.",
   "cancelled": "Update cancelled.",
   "cacheFailed": "Could not restore saved usage. Update to get new data.",
-  "updateClaude": "Update Claude Code to version 2.1.296, then connect again.",
+  "updateClaude": "Update Claude Code to version 2.1.296 or newer, then connect again.",
   "signInTimeout": "Sign-in timed out. Try signing in again.",
   "errorCacheSave": "Could not save usage for the next launch.",
   "errorPauseSave": "Could not save the request pause.",

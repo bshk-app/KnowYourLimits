@@ -134,7 +134,7 @@
   "loginCodex": "Connectez-vous à Codex, puis mettez à jour.",
   "cancelled": "Mise à jour annulée.",
   "cacheFailed": "Impossible de restaurer l’utilisation enregistrée. Mettez à jour pour obtenir de nouvelles données.",
-  "updateClaude": "Mettez à jour Claude Code vers la version 2.1.296, puis reconnectez-vous.",
+  "updateClaude": "Mettez à jour Claude Code vers la version 2.1.296 ou ultérieure, puis reconnectez-vous.",
   "signInTimeout": "La connexion a expiré. Essayez de vous reconnecter.",
   "errorCacheSave": "Impossible d’enregistrer l’utilisation pour le prochain lancement.",
   "errorPauseSave": "Impossible d’enregistrer la pause des requêtes.",

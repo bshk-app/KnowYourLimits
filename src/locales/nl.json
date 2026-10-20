@@ -134,7 +134,7 @@
   "loginCodex": "Log in bij Codex en werk bij.",
   "cancelled": "Bijwerken geannuleerd.",
   "cacheFailed": "Bewaard gebruik kon niet worden hersteld. Werk bij voor nieuwe gegevens.",
-  "updateClaude": "Werk Claude Code bij naar versie 2.1.296 en koppel opnieuw.",
+  "updateClaude": "Werk Claude Code bij naar versie 2.1.296 of nieuwer en koppel opnieuw.",
   "signInTimeout": "Inloggen duurde te lang. Probeer opnieuw in te loggen.",
   "errorCacheSave": "Gebruik kon niet worden bewaard voor de volgende start.",
   "errorPauseSave": "De verzoekpauze kon niet worden bewaard.",

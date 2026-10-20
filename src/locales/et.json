@@ -134,7 +134,7 @@
   "loginCodex": "Logi Codexisse sisse ja uuenda.",
   "cancelled": "Uuendamine tühistatud.",
   "cacheFailed": "Salvestatud kasutusandmeid ei saanud taastada. Uute andmete saamiseks uuenda.",
-  "updateClaude": "Uuenda Claude Code versioonile 2.1.296 ja ühenda uuesti.",
+  "updateClaude": "Uuenda Claude Code versioonile 2.1.296 või uuemale ja ühenda uuesti.",
   "signInTimeout": "Sisselogimine aegus. Proovi uuesti sisse logida.",
   "errorCacheSave": "Kasutusandmeid ei saanud järgmiseks käivituseks salvestada.",
   "errorPauseSave": "Päringute pausi ei saanud salvestada.",

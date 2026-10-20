@@ -17,7 +17,7 @@ use tokio::{
     time::{timeout_at, Instant},
 };
 
-const VERSION: &str = "2.1.296";
+const MIN_VERSION: [u32; 3] = [2, 1, 296];
 const CLI_CACHE_MS: u64 = 60_000;
 const MAX_JS_INTEGER: u64 = 9_007_199_254_740_991;
 const READ_TIMEOUT: Duration = Duration::from_secs(15);
@@ -67,7 +67,9 @@ impl fmt::Display for ClaudeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Io => "Claude I/O failed",
-            Self::UnsupportedVersion => "Claude CLI version is unsupported (requires 2.1.296)",
+            Self::UnsupportedVersion => {
+                "Claude CLI version is unsupported (requires 2.1.296 or newer)"
+            }
             Self::NotAuthenticated => "Claude Code is not signed in",
             Self::UnsupportedAccount => "Claude subscription authentication is required",
             Self::Protocol => "Invalid Claude quota protocol",
@@ -206,6 +208,20 @@ fn header_windows(
     Ok(snapshot(found, started_at))
 }
 
+/// The undocumented `/usage` format is verified from MIN_VERSION; later changes
+/// fail strict response validation instead of being guessed.
+fn supported_version(text: &str) -> bool {
+    text.trim()
+        .strip_suffix(" (Claude Code)")
+        .and_then(|version| {
+            version
+                .split('.')
+                .map(|part| part.parse::<u32>().ok())
+                .collect::<Option<Vec<_>>>()
+        })
+        .is_some_and(|parts| parts.len() == 3 && parts.as_slice() >= MIN_VERSION.as_slice())
+}
+
 /// CLI-owned authentication and quota. No credential/config files are read by this app.
 pub async fn read(
     executable: &Path,
@@ -236,7 +252,7 @@ pub async fn read_or_sign_in(
     )
     .await?
     {
-        Output::Version(text) if text.trim() == format!("{VERSION} (Claude Code)") => {}
+        Output::Version(text) if supported_version(&text) => {}
         _ => return Err(ClaudeError::UnsupportedVersion),
     }
     if sign_in {

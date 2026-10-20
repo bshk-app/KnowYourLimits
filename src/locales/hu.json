@@ -134,7 +134,7 @@
   "loginCodex": "Jelentkezzen be a Codexbe, majd frissítsen.",
   "cancelled": "Frissítés megszakítva.",
   "cacheFailed": "A mentett használat nem állítható vissza. Frissítsen új adatokért.",
-  "updateClaude": "Frissítse a Claude Code-ot a 2.1.296-os verzióra, majd csatlakoztassa újra.",
+  "updateClaude": "Frissítse a Claude Code-ot a 2.1.296-os vagy újabb verzióra, majd csatlakoztassa újra.",
   "signInTimeout": "A bejelentkezés időtúllépés miatt megszakadt. Próbáljon újra bejelentkezni.",
   "errorCacheSave": "A használat nem menthető a következő indításhoz.",
   "errorPauseSave": "A kérések szüneteltetése nem menthető.",
