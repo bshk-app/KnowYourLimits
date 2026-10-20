@@ -327,7 +327,7 @@ impl Fake {
         Self { dir, executable }
     }
     async fn pids(&self, phase: &str) -> Vec<i32> {
-        let deadline = Instant::now() + Duration::from_secs(3);
+        let deadline = Instant::now() + Duration::from_secs(10);
         loop {
             if let Ok(text) = fs::read_to_string(self.dir.join(format!("{phase}-ready"))) {
                 return text
@@ -341,7 +341,7 @@ impl Fake {
     }
     pub(crate) async fn cleaned(&self, phase: &str) {
         let pids = self.pids(phase).await;
-        let deadline = Instant::now() + Duration::from_secs(3);
+        let deadline = Instant::now() + Duration::from_secs(10);
         while !pids.iter().all(|pid| unsafe { libc::kill(*pid, 0) } == -1) {
             assert!(
                 Instant::now() < deadline,

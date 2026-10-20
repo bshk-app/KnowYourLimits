@@ -401,13 +401,15 @@ async fn cancellation_and_shutdown_reap_real_process_group() {
         let fake = crate::codex::tests::Fake::new("cancel_group");
         let coordinator = fixture(&fake);
         coordinator.read_quota(ProviderId::Codex).await.unwrap();
-        let pids = fake.pids().await;
+        let child = fake.pids().await[0];
         if shutdown {
             let ((), ()) = tokio::join!(coordinator.shutdown(), coordinator.shutdown());
         } else {
             coordinator.cancel_read().await.unwrap();
         }
-        assert!(pids.iter().all(|&pid| unsafe { libc::kill(pid, 0) } == -1));
+        // The direct child is reaped before return; SIGKILLed group helpers exit asynchronously.
+        assert_eq!(unsafe { libc::kill(child, 0) }, -1);
+        fake.cleaned().await;
         assert!(coordinator.snapshot().refreshing.is_none());
         coordinator.shutdown().await;
     }

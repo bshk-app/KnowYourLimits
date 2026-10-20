@@ -271,7 +271,7 @@ impl Fake {
         Self { dir, executable }
     }
     pub(crate) async fn pids(&self) -> Vec<i32> {
-        let deadline = Instant::now() + Duration::from_secs(3);
+        let deadline = Instant::now() + Duration::from_secs(10);
         loop {
             if let Ok(text) = fs::read_to_string(self.dir.join("ready")) {
                 return text
@@ -285,7 +285,7 @@ impl Fake {
     }
     pub(crate) async fn cleaned(&self) {
         let pids = self.pids().await;
-        let deadline = Instant::now() + Duration::from_secs(3);
+        let deadline = Instant::now() + Duration::from_secs(10);
         loop {
             // Each PID is freshly recorded by this fixture, never searched by name.
             if pids.iter().all(|&pid| unsafe { libc::kill(pid, 0) } == -1) {
