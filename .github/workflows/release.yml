@@ -103,6 +103,11 @@ jobs:
           workspaces: src-tauri
       - run: bun install --frozen-lockfile
       - uses: ./.github/actions/setup-zamok
+      - name: Use TCP for Apple ticket validation
+        # Hosted runner HTTP/3 failures: actions/runner-images#14924.
+        run: |
+          printf '%s\n' 'block return out quick proto udp from any to any port 443' | sudo pfctl -f -
+          sudo pfctl -E
       - name: Import Developer ID into a temporary Keychain
         env:
           DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
@@ -189,6 +194,11 @@ jobs:
           name: KnowYourLimits-macos-arm64
           path: artifacts/macos
       - uses: ./.github/actions/setup-zamok
+      - name: Use TCP for Apple ticket validation
+        # Hosted runner HTTP/3 failures: actions/runner-images#14924.
+        run: |
+          printf '%s\n' 'block return out quick proto udp from any to any port 443' | sudo pfctl -f -
+          sudo pfctl -E
       - name: Verify and publish both platforms
         env:
           GH_TOKEN: ${{ github.token }}
@@ -211,6 +221,11 @@ jobs:
           ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
       - uses: ./.github/actions/setup-zamok
+      - name: Use TCP for Apple ticket validation
+        # Hosted runner HTTP/3 failures: actions/runner-images#14924.
+        run: |
+          printf '%s\n' 'block return out quick proto udp from any to any port 443' | sudo pfctl -f -
+          sudo pfctl -E
       - name: Install the tap required by Homebrew audit
         run: brew tap bshk-app/tap
       - name: Promote original signed bytes and verify all distribution surfaces

@@ -86,6 +86,15 @@ notarizes, staples, and packages the final app and DMG. The script verifies
 `codesign`, `stapler`, and Gatekeeper. Apple credentials use a temporary Keychain
 and files removed after the signing job.
 
+macOS packaging, publication, and promotion jobs route HTTPS over TCP by blocking
+outbound UDP port 443 on their disposable hosted runners. This addresses the
+CloudKit connection drops described in the
+[GitHub runner report](https://github.com/actions/runner-images/issues/14924#issuecomment-6188826956).
+Every signature, stapling, and Gatekeeper check must still succeed. A workflow-only
+repair can publish an existing unchanged version tag by dispatching `release.yml`
+from the updated `main` with that tag and `publish=true`; the application source
+and build provenance remain pinned to the tag.
+
 `sign-updates.mjs` archives the **final signed and stapled app**, then signs that
 archive and the Windows installer with `tauri signer sign --app-version`.
 Minisign verifies their signatures and authenticated version comments against the
