@@ -315,16 +315,18 @@ function renderProvider(
                     ? [badge(t('outdated'))]
                     : worst === 'exhausted'
                       ? [badge(t('exhausted'), 'crit')]
-                      : worst === 'critical'
-                        ? [badge(t('critical'), 'crit')]
-                        : worst === 'warning'
-                          ? [badge(t('warning'), 'warn')]
-                          : [badge(t('current'), 'ok')]),
+                      : provider.status === 'blocked'
+                        ? [badge(t('usageBlocked'), 'warn')]
+                        : worst === 'critical'
+                          ? [badge(t('critical'), 'crit')]
+                          : worst === 'warning'
+                            ? [badge(t('warning'), 'warn')]
+                            : [badge(t('current'), 'ok')]),
   );
 
   view.left.hidden = connecting;
   view.leftValue.textContent = remaining === null ? '—' : percent(remaining);
-  view.leftLabel.textContent = t(remaining === null ? 'noData' : 'remaining');
+  view.leftLabel.textContent = t(remaining === null ? 'noData' : fresh ? 'remaining' : 'pastValue');
   view.left.className = `kyl-left${
     remaining === null
       ? ' is-empty'

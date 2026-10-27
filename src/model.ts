@@ -10,7 +10,13 @@ import {
 } from './i18n';
 export const PROVIDER_IDS = ['claude', 'codex'] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
-export type ProviderStatus = 'current' | 'stale' | 'error' | 'unavailable' | 'signedout';
+export type ProviderStatus =
+  | 'current'
+  | 'blocked'
+  | 'stale'
+  | 'error'
+  | 'unavailable'
+  | 'signedout';
 export const STALE_AFTER_MS = 5 * 60_000;
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = { claude: 'Claude', codex: 'Codex' };
@@ -228,6 +234,7 @@ function validateProvider(value: unknown): ProviderSnapshot {
     !isProviderId(value.id) ||
     !Array.isArray(value.windows) ||
     (value.status !== 'current' &&
+      value.status !== 'blocked' &&
       value.status !== 'stale' &&
       value.status !== 'error' &&
       value.status !== 'unavailable' &&
@@ -329,7 +336,7 @@ export function disconnectedState(settings = defaultSettings()): AppState {
 
 export function isProviderFresh(provider: ProviderSnapshot, now = Date.now()): boolean {
   return (
-    provider.status === 'current' &&
+    (provider.status === 'current' || provider.status === 'blocked') &&
     provider.fetchedAt !== null &&
     Number.isFinite(provider.fetchedAt) &&
     provider.fetchedAt <= now &&

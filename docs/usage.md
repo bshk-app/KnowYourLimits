@@ -44,6 +44,7 @@ presented as a five-hour limit.
 | Current percentage or solid ring | A usable recent reading for that window. |
 | `~` in menu bar text or tooltips; dashed Windows ring | A last known value, including while an update is in progress. |
 | **Out of date** / **Previous value** in a card | Historical data, retained for reference. |
+| **Usage blocked** | Codex reports that usage is blocked. Quota measurements can still be fresh; this does not establish a sign-in problem. |
 | `—` / unknown ring | No usable measurement or a disconnected/signed-out account; not zero quota. |
 | **Awaiting reset** | The reported reset time passed; a new reading is still needed. |
 | **Reset time unavailable** | The provider did not supply a reset time. |
@@ -54,6 +55,14 @@ into a new one or change its measurement time. Passing a reset time does not
 reset a counter to zero used or 100% remaining. Refreshing keeps the existing
 values visible until a new snapshot arrives. Restored snapshots are historical;
 notifications require a fresh reading.
+
+When Codex blocks usage, the card keeps the quota measurements and their original
+timestamp. A fully used active window shows **Limit reached**; a block with quota
+remaining shows **Usage blocked**. The remaining percentage describes the reported
+quota, not permission to send a request. Blocked readings do not send quota recovery
+notifications. Empty, expired, or failed readings ask for an update without assuming
+that the account is signed out. Older percentages are labeled **Previous value**
+beside the number.
 
 Claude's usage response may reuse up to 60 seconds of CLI cache without an
 observation timestamp. The app conservatively dates that reading to the start

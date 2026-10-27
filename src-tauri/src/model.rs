@@ -38,6 +38,7 @@ impl ProviderId {
 #[serde(rename_all = "lowercase")]
 pub enum ProviderStatus {
     Current,
+    Blocked,
     Stale,
     Error,
     Unavailable,
@@ -250,11 +251,13 @@ impl ProviderSnapshot {
         })
     }
     pub fn remaining(&self, now: u64) -> Option<f64> {
-        if self.status != ProviderStatus::Current
-            || self
-                .fetched_at
-                .and_then(|at| now.checked_sub(at))
-                .is_none_or(|age| age > STALE_AFTER_MS)
+        if !matches!(
+            self.status,
+            ProviderStatus::Current | ProviderStatus::Blocked
+        ) || self
+            .fetched_at
+            .and_then(|at| now.checked_sub(at))
+            .is_none_or(|age| age > STALE_AFTER_MS)
         {
             return None;
         }

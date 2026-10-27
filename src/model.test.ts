@@ -104,6 +104,17 @@ describe('native state validation', () => {
 });
 
 describe('remaining quota', () => {
+  it('keeps blocked quota measurements fresh until their timestamp or window expires', () => {
+    const state = validateAppState(sampleState('blocked', defaultSettings(), NOW));
+    const provider = state.providers[1];
+    if (!provider) throw new Error('missing fixture');
+    expect(isProviderFresh(provider, NOW)).toBe(true);
+    expect(remainingPercent(provider, NOW)).toBe(38);
+    expect(trayTitle(state, NOW)).toBe('C 26% · X 38%');
+    expect(remainingPercent(provider, NOW + 300_001)).toBeNull();
+    for (const window of provider.windows) window.resetsAt = NOW;
+    expect(remainingPercent(provider, NOW)).toBeNull();
+  });
   it('keeps the last percentage visible when a manual snapshot ages', () => {
     const state = sampleState('current', defaultSettings(), NOW);
     expect(trayTitle(state, NOW + 900_000)).toBe('C ~26% · X ~38%');

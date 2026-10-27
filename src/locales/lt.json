@@ -24,6 +24,7 @@
   "signedOut": "Reikia prisijungti",
   "disconnected": "Neprijungta",
   "unavailable": "Naudojimo duomenys nepasiekiami",
+  "usageBlocked": "Naudojimas užblokuotas",
   "refreshFailed": "Atnaujinti nepavyko",
   "outdated": "Pasenę",
   "current": "Aktualūs",

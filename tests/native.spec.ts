@@ -227,7 +227,7 @@ test('last percentages remain visible as the manual snapshot ages and after reop
   await expect(page.locator('#tray-preview')).toHaveText('C ~26% · X ~38%');
   const codex = page.locator('.kyl-card').last();
   await expect(codex.locator('.kyl-left b')).toHaveText('38%');
-  await expect(codex.locator('.kyl-left span')).toHaveText('remaining');
+  await expect(codex.locator('.kyl-left span')).toHaveText('Previous value');
   await expect(codex.locator('.kyl-card-foot')).toContainText('15 minutes ago');
   expect(await count(page, 'read_quota')).toBe(0);
   await page.reload();
@@ -336,12 +336,34 @@ test('an expired window does not color the card next to the live remaining value
   await expect(claude.locator('.kyl-left')).not.toHaveClass(/crit/);
   await expect(claude.locator('.kyl-window').first()).toHaveClass(/historical/);
 });
-test('cards show update age without repeating the schedule or history labels', async ({ page }) => {
+for (const used of [42, 100]) {
+  test(`blocked Codex usage keeps fresh ${used}% quota without a sign-in hint`, async ({
+    page,
+  }) => {
+    const state = sampleState();
+    state.providers[1].status = 'blocked';
+    state.providers[1].windows = [{ ...state.providers[1].windows[1], usedPercent: used }];
+    await mockNative(page, state);
+    const codex = page.locator('.kyl-card').last();
+    await expect(codex.locator('.kyl-badge')).toHaveText(
+      used === 100 ? 'Limit reached' : 'Usage blocked',
+    );
+    await expect(codex.locator('.kyl-left b')).toHaveText(`${100 - used}%`);
+    await expect(codex.locator('.kyl-left span')).toHaveText('remaining');
+    await expect(codex.locator('.kyl-window')).not.toHaveClass(/historical/);
+    await expect(page.locator('#tray-preview')).toHaveText(`C 26% · X ${100 - used}%`);
+    await expect(page.locator('body')).not.toContainText('Sign in to Codex');
+  });
+}
+test('cards distinguish previous values from current quota beside the update age', async ({
+  page,
+}) => {
   const state = sampleState('stale');
   state.settings.preferences.claude.refreshMinutes = 2;
   state.settings.preferences.codex.refreshMinutes = 15;
   await mockNative(page, state);
   await expect(page.locator('.kyl-card-foot').first()).toContainText('Updated');
+  await expect(page.locator('.kyl-left span')).toHaveText(['Previous value', 'Previous value']);
   await expect(page.locator('#panel-footer')).toHaveCount(0);
   await expect(page.locator('#counter-help')).toHaveCount(0);
   await expect(
@@ -542,6 +564,8 @@ test('every locale updates open quota cards, accessible labels and notices witho
   await page.setViewportSize({ width: 360, height: 800 });
   await page.emulateMedia({ colorScheme: 'dark' });
   const state = sampleState('stale');
+  state.providers[1].status = 'blocked';
+  state.providers[1].fetchedAt = Date.now();
   state.notice = 'kyl:cancelled';
   await mockNative(page, state);
   for (const locale of Object.keys(LANGUAGES) as Locale[]) {

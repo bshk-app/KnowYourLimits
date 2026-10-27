@@ -24,6 +24,7 @@
   "signedOut": "Vajalik sisselogimine",
   "disconnected": "Ühendamata",
   "unavailable": "Kasutusandmed pole saadaval",
+  "usageBlocked": "Kasutamine blokeeritud",
   "refreshFailed": "Uuendamine ebaõnnestus",
   "outdated": "Aegunud",
   "current": "Ajakohane",

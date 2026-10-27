@@ -147,8 +147,11 @@ fn normalize(value: Value, now: u64) -> Result<CodexRead, CodexError> {
         snapshot: ProviderSnapshot {
             id: ProviderId::Codex,
             label: "Codex".into(),
-            status: if windows.is_empty() || ordinary_usage_allowed == Some(false) {
+            status: if windows.is_empty() {
                 ProviderStatus::Unavailable
+            } else if ordinary_usage_allowed == Some(false) {
+                // Permission to use Codex is separate from the freshness of its quota.
+                ProviderStatus::Blocked
             } else {
                 ProviderStatus::Current
             },

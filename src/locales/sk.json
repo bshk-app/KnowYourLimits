@@ -24,6 +24,7 @@
   "signedOut": "Vyžaduje sa prihlásenie",
   "disconnected": "Nepripojené",
   "unavailable": "Údaje o využití nie sú dostupné",
+  "usageBlocked": "Používanie je zablokované",
   "refreshFailed": "Aktualizácia zlyhala",
   "outdated": "Zastarané",
   "current": "Aktuálne",

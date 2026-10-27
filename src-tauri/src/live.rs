@@ -28,17 +28,8 @@ fn missing_cli(id: ProviderId) -> ReadFailure {
         ProviderId::Codex => "kyl:installCodex",
     })
 }
-fn read_failed(id: ProviderId) -> ReadFailure {
-    ReadFailure::Message(match id {
-        ProviderId::Claude => "kyl:loginClaude",
-        ProviderId::Codex => "kyl:loginCodex",
-    })
-}
-fn no_quota(id: ProviderId) -> &'static str {
-    match id {
-        ProviderId::Claude => "kyl:noQuota",
-        ProviderId::Codex => "kyl:loginCodex",
-    }
+fn read_failed() -> ReadFailure {
+    ReadFailure::Message("kyl:refreshFailed")
 }
 #[derive(Debug, Clone, Copy)]
 enum ReadFailure {
@@ -342,7 +333,7 @@ impl Coordinator {
                     let notice = snapshot
                         .remaining(now_ms())
                         .is_none()
-                        .then(|| no_quota(provider).into());
+                        .then(|| "kyl:noQuota".into());
                     if snapshot.windows.is_empty() && target.fetched_at.is_some() {
                         target.status = ProviderStatus::Stale;
                     } else {
@@ -351,10 +342,7 @@ impl Coordinator {
                     notice
                 }
                 error => {
-                    let notice = error
-                        .err()
-                        .unwrap_or_else(|| read_failed(provider))
-                        .message();
+                    let notice = error.err().unwrap_or_else(read_failed).message();
                     target.status = if notice == CLAUDE_LOGIN_REQUIRED {
                         ProviderStatus::SignedOut
                     } else {
@@ -726,7 +714,7 @@ async fn read_resolved(
             crate::codex::read_managed(&resolved.executable, &resolved.child_path, cancel)
                 .await
                 .map(|r| r.snapshot)
-                .map_err(|_| read_failed(id))
+                .map_err(|_| read_failed())
         }
         ProviderId::Claude => crate::claude::read_or_sign_in(
             &resolved.executable,
@@ -743,7 +731,7 @@ async fn read_resolved(
             crate::claude::ClaudeError::UnsupportedAccount => "kyl:signInHelp".into(),
             crate::claude::ClaudeError::UnsupportedVersion => "kyl:updateClaude".into(),
             crate::claude::ClaudeError::Timeout if sign_in => "kyl:signInTimeout".into(),
-            _ => read_failed(id),
+            _ => read_failed(),
         }),
     }
 }

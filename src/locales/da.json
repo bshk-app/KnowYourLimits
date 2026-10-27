@@ -24,6 +24,7 @@
   "signedOut": "Login påkrævet",
   "disconnected": "Ikke forbundet",
   "unavailable": "Forbrug ikke tilgængeligt",
+  "usageBlocked": "Brug blokeret",
   "refreshFailed": "Opdatering mislykkedes",
   "outdated": "Forældet",
   "current": "Opdateret",

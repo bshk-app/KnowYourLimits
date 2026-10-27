@@ -24,6 +24,7 @@
   "signedOut": "Potrebna je prijava",
   "disconnected": "Ni povezano",
   "unavailable": "Podatki o porabi niso na voljo",
+  "usageBlocked": "Uporaba je blokirana",
   "refreshFailed": "Osveževanje ni uspelo",
   "outdated": "Zastarelo",
   "current": "Ažurno",
