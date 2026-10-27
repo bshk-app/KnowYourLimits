@@ -80,9 +80,9 @@ async fn restored_timer_resumes_and_a_failed_refresh_survives_another_restart() 
     let count = calls.clone();
     let restarted = Coordinator::with_reader(
         AppState::disconnected(settings.clone()),
-        Arc::new(move |id, _, _| {
+        Arc::new(move |_, _, _| {
             count.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async move { Err(read_failed(id)) })
+            Box::pin(async move { Err(read_failed()) })
         }),
         Arc::new(|_| {}),
     )
@@ -284,7 +284,7 @@ async fn failed_refresh_keeps_original_history_timestamp() {
                 if success {
                     Ok(sample(id, 42.0))
                 } else {
-                    Err(read_failed(id))
+                    Err(read_failed())
                 }
             })
         }),
@@ -305,15 +305,49 @@ async fn failed_refresh_keeps_original_history_timestamp() {
     coordinator.shutdown().await;
 }
 #[tokio::test(flavor = "current_thread")]
+async fn codex_usage_restriction_preserves_fresh_quota_without_a_login_notice() {
+    for (mode, remaining) in [("permission_false", 58.0), ("exhausted", 0.0)] {
+        let fake = crate::codex::tests::Fake::new(mode);
+        let coordinator = fixture(&fake);
+        coordinator.read_quota(ProviderId::Codex).await.unwrap();
+        let state = coordinator.wait_for_idle().await;
+        let snapshot = &state.providers[1];
+        assert_eq!(snapshot.status, ProviderStatus::Blocked);
+        assert_eq!(snapshot.remaining(now_ms()), Some(remaining));
+        assert_eq!(state.notice, None);
+        fake.cleaned().await;
+        coordinator.shutdown().await;
+    }
+}
+#[tokio::test(flavor = "current_thread")]
+async fn missing_expired_and_failed_codex_readings_do_not_guess_an_authentication_error() {
+    for mode in ["expired", "no_quota", "rpc", "invalid"] {
+        let fake = crate::codex::tests::Fake::new(mode);
+        let coordinator = fixture(&fake);
+        coordinator.read_quota(ProviderId::Codex).await.unwrap();
+        let state = coordinator.wait_for_idle().await;
+        assert_eq!(
+            state.notice.as_deref(),
+            Some(if matches!(mode, "rpc" | "invalid") {
+                "kyl:refreshFailed"
+            } else {
+                "kyl:noQuota"
+            })
+        );
+        fake.cleaned().await;
+        coordinator.shutdown().await;
+    }
+}
+#[tokio::test(flavor = "current_thread")]
 async fn unavailable_expired_and_failure_never_show_zero() {
-    for mode in ["permission_false", "expired", "no_quota", "rpc", "invalid"] {
+    for mode in ["expired", "no_quota", "rpc", "invalid"] {
         let fake = crate::codex::tests::Fake::new(mode);
         let coordinator = fixture(&fake);
         coordinator.read_quota(ProviderId::Codex).await.unwrap();
         let state = coordinator.wait_for_idle().await;
         assert_eq!(
             state.title(now_ms()),
-            if mode == "expired" || mode == "permission_false" {
+            if mode == "expired" {
                 "C — · X ~58%"
             } else {
                 "C — · X —"
@@ -722,7 +756,7 @@ async fn automatic_failures_wait_for_interval_without_losing_history() {
                 if first {
                     Ok(sample(id, 85.0))
                 } else {
-                    Err(read_failed(id))
+                    Err(read_failed())
                 }
             })
         }),
@@ -959,7 +993,7 @@ fn counting(fail: bool) -> (Arc<AtomicUsize>, Reader) {
         count.fetch_add(1, Ordering::SeqCst);
         Box::pin(async move {
             if fail {
-                Err(read_failed(id))
+                Err(read_failed())
             } else {
                 Ok(sample(id, 40.0))
             }

@@ -167,8 +167,9 @@ mod tests {
             .contains("100%"));
     }
     #[test]
-    fn stale_error_elapsed_future_and_disabled_do_not_alert() {
+    fn blocked_stale_error_elapsed_future_and_disabled_do_not_alert() {
         for status in [
+            ProviderStatus::Blocked,
             ProviderStatus::Stale,
             ProviderStatus::Error,
             ProviderStatus::Unavailable,

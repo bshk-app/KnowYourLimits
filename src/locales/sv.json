@@ -24,6 +24,7 @@
   "signedOut": "Inloggning krävs",
   "disconnected": "Inte anslutet",
   "unavailable": "Användning ej tillgänglig",
+  "usageBlocked": "Användning blockerad",
   "refreshFailed": "Uppdateringen misslyckades",
   "outdated": "Inaktuellt",
   "current": "Aktuellt",

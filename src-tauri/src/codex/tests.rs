@@ -134,8 +134,8 @@ fn blocked_and_unknown_permission_remain_distinct() {
         let read = normalize(response, NOW).unwrap();
         assert_eq!(read.ordinary_usage_allowed, Some(false));
         assert_eq!(read.snapshot.windows.len(), 1);
-        assert_eq!(read.snapshot.status, ProviderStatus::Unavailable);
-        assert_eq!(read.snapshot.remaining(NOW), None);
+        assert_eq!(read.snapshot.status, ProviderStatus::Blocked);
+        assert_eq!(read.snapshot.remaining(NOW), Some(58.0));
     }
     for permission in [None, Some(Value::Null)] {
         let mut response = mapped(bucket());
@@ -166,7 +166,8 @@ fn nested_permission_cannot_override_response_permission() {
     response["ordinaryUsageAllowed"] = json!(false);
     let read = normalize(response, NOW).unwrap();
     assert_eq!(read.ordinary_usage_allowed, Some(false));
-    assert_eq!(read.snapshot.remaining(NOW), None);
+    assert_eq!(read.snapshot.status, ProviderStatus::Blocked);
+    assert_eq!(read.snapshot.remaining(NOW), Some(58.0));
 }
 
 #[test]
@@ -374,7 +375,8 @@ else:
             quota = {'primary':{'usedPercent':42,'windowDurationMins':10080,'resetsAt':int(time.time())+86400},'accountId':'SYNTHETIC_PRIVATE_ID_EMAIL_TOKEN'}
             if MODE == 'no_quota': quota = {}
             if MODE == 'expired': quota['primary']['resetsAt'] = 1
-            send({'id':2,'result':{'ordinaryUsageAllowed':MODE != 'permission_false','rateLimits':quota,'rateLimitsByLimitId':None}})
+            if MODE == 'exhausted': quota['primary']['usedPercent'] = 100
+            send({'id':2,'result':{'ordinaryUsageAllowed':MODE not in ['permission_false','exhausted'],'rateLimits':quota,'rateLimitsByLimitId':None}})
             # No fourth packet allowed, even during cleanup.
             assert sys.stdin.readline() == ''
 while True: time.sleep(1)

@@ -24,6 +24,7 @@
   "signedOut": "Kirjautuminen vaaditaan",
   "disconnected": "Ei yhdistetty",
   "unavailable": "Käyttötietoja ei saatavilla",
+  "usageBlocked": "Käyttö estetty",
   "refreshFailed": "Päivitys epäonnistui",
   "outdated": "Vanhentunut",
   "current": "Ajan tasalla",

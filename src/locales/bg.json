@@ -24,6 +24,7 @@
   "signedOut": "Необходим е вход",
   "disconnected": "Няма връзка",
   "unavailable": "Използването е недостъпно",
+  "usageBlocked": "Използването е блокирано",
   "refreshFailed": "Обновяването е неуспешно",
   "outdated": "Неактуално",
   "current": "Актуално",

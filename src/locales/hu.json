@@ -24,6 +24,7 @@
   "signedOut": "Bejelentkezés szükséges",
   "disconnected": "Nincs csatlakoztatva",
   "unavailable": "A használat nem érhető el",
+  "usageBlocked": "Használat letiltva",
   "refreshFailed": "Sikertelen frissítés",
   "outdated": "Elavult",
   "current": "Naprakész",

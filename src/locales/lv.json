@@ -24,6 +24,7 @@
   "signedOut": "Jāpierakstās",
   "disconnected": "Nav savienots",
   "unavailable": "Lietojuma dati nav pieejami",
+  "usageBlocked": "Lietošana bloķēta",
   "refreshFailed": "Atjaunināšana neizdevās",
   "outdated": "Novecojis",
   "current": "Aktuāls",

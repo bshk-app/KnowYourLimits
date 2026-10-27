@@ -24,6 +24,7 @@
   "signedOut": "Требуется вход",
   "disconnected": "Не подключён",
   "unavailable": "Лимиты недоступны",
+  "usageBlocked": "Использование заблокировано",
   "refreshFailed": "Не удалось обновить",
   "outdated": "Данные устарели",
   "current": "Актуально",

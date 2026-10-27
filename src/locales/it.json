@@ -24,6 +24,7 @@
   "signedOut": "Accesso richiesto",
   "disconnected": "Non collegato",
   "unavailable": "Utilizzo non disponibile",
+  "usageBlocked": "Utilizzo bloccato",
   "refreshFailed": "Aggiornamento non riuscito",
   "outdated": "Non aggiornato",
   "current": "Aggiornato",
