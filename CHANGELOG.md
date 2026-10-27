@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/bshk-app/KnowYourLimits/compare/v0.2.8...v0.2.9) (2026-10-27)
+
+
+### Bug Fixes
+
+* distinguish blocked Codex usage from unavailable quota ([#2](https://github.com/bshk-app/KnowYourLimits/issues/2)) ([f3d1627](https://github.com/bshk-app/KnowYourLimits/commit/f3d162797363f93bc4fa4c75bc317af1debd3fb4))
+
 ## [0.2.8](https://github.com/bshk-app/KnowYourLimits/compare/v0.2.7...v0.2.8) (2026-10-20)
 
 
