@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/bshk-app/KnowYourLimits/compare/v0.2.9...v0.2.10) (2026-11-01)
+
+
+### Bug Fixes
+
+* fit the menu bar indicator to its content ([8a0b385](https://github.com/bshk-app/KnowYourLimits/commit/8a0b385b76f9da4b897b0d57884e817692d2bee7))
+
 ## [0.2.9](https://github.com/bshk-app/KnowYourLimits/compare/v0.2.8...v0.2.9) (2026-10-27)
 
 
