@@ -226,8 +226,10 @@ jobs:
         run: |
           printf '%s\n' 'block return out quick proto udp from any to any port 443' | sudo pfctl -f -
           sudo pfctl -E
-      - name: Install the tap required by Homebrew audit
-        run: brew tap bshk-app/tap
+      - name: Install and trust the tap required by Homebrew audit
+        run: |
+          brew tap bshk-app/tap
+          brew trust --tap bshk-app/tap
       - name: Promote original signed bytes and verify all distribution surfaces
         env:
           GH_TOKEN: ${{ github.token }}
