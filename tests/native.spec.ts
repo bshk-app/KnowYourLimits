@@ -260,6 +260,9 @@ test('refresh keeps the target history and the same button cancels it', async ({
   await page.locator('#connect-codex').click();
   await expect(page.locator('#connect-codex')).toHaveText('Cancel update');
   await expect(page.locator('#tray-preview')).toHaveText('C 26% · X ~38%');
+  const refreshingMark = page.locator('#tray-visual .tray-provider').last();
+  await expect(refreshingMark).toHaveClass(/historical/);
+  await expect(refreshingMark.locator('.tray-value')).toHaveText('38%');
   await expect(page.locator('.kyl-card').last().locator('.tone')).toHaveText(['', '']);
   await expect(page.locator('#connect-claude')).toBeDisabled();
   await page.locator('#connect-codex').click();

@@ -1,5 +1,8 @@
 //! 2x CoreText/CoreGraphics rendering at the native 22-point status-bar height.
-use crate::model::{AppState, IconStyle, ProviderId, ProviderPreferences, TrayLayout};
+use crate::model::{
+    AppState, IconStyle, ProviderId, ProviderPreferences, ProviderSnapshot, ProviderStatus,
+    TrayLayout,
+};
 use core_graphics::{
     base::kCGImageAlphaPremultipliedLast,
     color_space::CGColorSpace,
@@ -11,6 +14,13 @@ use core_text::{
     font_descriptor::kCTFontOrientationHorizontal,
 };
 use std::f64::consts::PI;
+
+/// Points of transparent space at each end; the menu bar adds its own spacing.
+const EDGE: f64 = 1.0;
+/// Points between provider columns.
+const GAP: f64 = 4.0;
+const RING_RADIUS: f64 = 7.5;
+const RING_LINE: f64 = 1.6;
 
 pub struct Frame {
     pub rgba: Vec<u8>,
@@ -164,6 +174,37 @@ fn arc(ctx: &CGContext, cx: f64, cy: f64, r: f64, fraction: f64) {
     }
     ctx.stroke_path();
 }
+/// Per bar provider: displayed remaining percent, stale, refreshing. Besides
+/// settings and theme, these are the only frame inputs, so they key the tray cache.
+pub fn readings(state: &AppState, now: u64) -> Vec<(Option<f64>, bool, bool)> {
+    state
+        .settings
+        .bar_providers
+        .iter()
+        .map(|id| {
+            let refreshing = state.refreshing == Some(*id);
+            // A refresh marks its snapshot Stale before any new reading exists; judge
+            // it as current so neither the value nor its `~` changes until it ends.
+            let provider = state
+                .providers
+                .iter()
+                .find(|p| p.id == *id)
+                .map(|p| ProviderSnapshot {
+                    status: if refreshing {
+                        ProviderStatus::Current
+                    } else {
+                        p.status
+                    },
+                    ..p.clone()
+                });
+            (
+                provider.as_ref().and_then(|p| p.display_remaining(now)),
+                provider.is_none_or(|p| p.remaining(now).is_none()),
+                refreshing,
+            )
+        })
+        .collect()
+}
 pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
     let template = state
         .settings
@@ -171,17 +212,20 @@ pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
         .iter()
         .all(|id| state.settings.preferences.get(*id).color == "system");
     let mut columns = Vec::new();
-    let mut logical_width = 4.0;
-    for id in &state.settings.bar_providers {
+    for (id, (remaining, stale, refreshing)) in state
+        .settings
+        .bar_providers
+        .iter()
+        .zip(readings(state, now))
+    {
         let p = state.settings.preferences.get(*id);
         let scale = p.size.scale();
-        let provider = state.providers.iter().find(|provider| provider.id == *id);
-        let remaining = provider.and_then(|p| p.display_remaining(now));
-        let historical =
-            state.refreshing == Some(*id) || provider.is_none_or(|p| p.remaining(now).is_none());
+        // A refresh only dims the value: a temporary `~` would resize the item
+        // and shift its menu bar neighbours.
+        let historical = stale || refreshing;
         let text = remaining.map_or_else(
             || "—".into(),
-            |r| format!("{}{}%", if historical { "~" } else { "" }, r.round() as u8),
+            |r| format!("{}{}%", if stale { "~" } else { "" }, r.round() as u8),
         );
         let label = Label::new(
             &text,
@@ -191,15 +235,18 @@ pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
                 12.0 * scale
             },
         )?;
-        let reserved_width = Label::new(
-            "~100%",
-            if state.settings.layout == TrayLayout::Stacked {
-                10.0 * scale
-            } else {
-                12.0 * scale
-            },
-        )?
-        .width;
+        let name = (state.settings.layout == TrayLayout::Stacked && p.icon == IconStyle::None)
+            .then(|| {
+                Label::new(
+                    if *id == ProviderId::Claude {
+                        "CLA"
+                    } else {
+                        "CDX"
+                    },
+                    7.0 * scale,
+                )
+            })
+            .transpose()?;
         let icon_width = if p.icon == IconStyle::None {
             0.0
         } else {
@@ -207,17 +254,18 @@ pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
         };
         let width = match state.settings.layout {
             TrayLayout::Inline => {
-                icon_width
-                    + if icon_width > 0.0 { 4.0 } else { 0.0 }
-                    + label.width.max(reserved_width)
-                    + 4.0
+                icon_width + if icon_width > 0.0 { 4.0 } else { 0.0 } + label.width
             }
-            TrayLayout::Stacked => label.width.max(reserved_width).max(16.0 * scale) + 2.0,
-            TrayLayout::Rings => 18.0 * scale + 5.0,
+            TrayLayout::Stacked => label
+                .width
+                .max(name.as_ref().map_or(8.0 * scale, |name| name.width)),
+            TrayLayout::Rings => (2.0 * RING_RADIUS + RING_LINE) * scale,
         };
-        logical_width += width + 4.0;
-        columns.push((*id, p, remaining, historical, label, width));
+        columns.push((*id, p, remaining, historical, label, name, width));
     }
+    let logical_width = 2.0 * EDGE
+        + columns.iter().map(|column| column.6).sum::<f64>()
+        + GAP * columns.len().saturating_sub(1) as f64;
     let width = (logical_width * 2.0).ceil() as usize;
     let height = 44;
     let mut ctx = CGContext::create_bitmap_context(
@@ -234,11 +282,8 @@ pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
         &CGSize::new(width as f64, height as f64),
     ));
     ctx.scale(2.0, 2.0);
-    let mut x = 2.0;
-    let count = columns.len();
-    for (index, (id, p, remaining, historical, label, column_width)) in
-        columns.into_iter().enumerate()
-    {
+    let mut x = EDGE;
+    for (id, p, remaining, historical, label, name, column_width) in columns {
         let (r, g, b) = color(p, dark, template);
         let alpha = if remaining.is_none() {
             0.52
@@ -266,29 +311,6 @@ pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
                 );
             }
             TrayLayout::Stacked => {
-                let name = (p.icon == IconStyle::None)
-                    .then(|| {
-                        Label::new(
-                            if id == ProviderId::Claude {
-                                "CLA"
-                            } else {
-                                "CDX"
-                            },
-                            7.0 * scale,
-                        )
-                    })
-                    .transpose()?;
-                // Columns keep the reserved width so the item does not jump, but a pair
-                // hugs the middle: the spare room goes to the outer edges.
-                let half = label
-                    .width
-                    .max(name.as_ref().map_or(8.0 * scale, |name| name.width))
-                    / 2.0;
-                let center = match (count, index) {
-                    (2, 0) => x + column_width - 1.0 - half,
-                    (2, _) => x + 1.0 + half,
-                    _ => center,
-                };
                 match name {
                     Some(name) => name.draw(&ctx, center - name.width / 2.0, 14.0),
                     None => icon(&ctx, id, p.icon, center, 17.0, 8.0 * scale)?,
@@ -296,8 +318,8 @@ pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
                 label.draw(&ctx, center - label.width / 2.0, 1.7);
             }
             TrayLayout::Rings => {
-                let radius = 7.5 * scale;
-                ctx.set_line_width(1.6 * scale);
+                let radius = RING_RADIUS * scale;
+                ctx.set_line_width(RING_LINE * scale);
                 ctx.set_rgb_stroke_color(r, g, b, 0.22 * alpha);
                 arc(&ctx, center, 11.0, radius, 1.0);
                 if let Some(remaining) = remaining.filter(|value| *value > 0.0) {
@@ -308,7 +330,7 @@ pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
                 icon(&ctx, id, p.icon, center, 11.0, 8.0 * scale)?;
             }
         }
-        x += column_width + 4.0;
+        x += column_width + GAP;
     }
     let mut rgba = ctx.data().to_vec();
     // CGBitmap is premultiplied; Tauri's RGBA image contract is straight alpha.
@@ -331,7 +353,7 @@ pub fn render(state: &AppState, now: u64, dark: bool) -> Result<Frame, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::Settings;
+    use crate::model::{ProviderSnapshot, ProviderStatus, QuotaWindow, Settings, STALE_AFTER_MS};
     #[test]
     fn every_layout_is_retina_sized_bounded_and_visible_without_fake_quota() {
         let mut state = AppState::disconnected(Settings::default());
@@ -360,15 +382,124 @@ mod tests {
         assert_ne!(before.rgba, after.rgba);
         assert!(after.width > before.width);
     }
+    const NOW: u64 = 1_800_000_000_000;
+    fn inked(frame: &Frame) -> Vec<bool> {
+        let (width, height) = (frame.width as usize, frame.height as usize);
+        (0..width)
+            .map(|x| (0..height).any(|y| frame.rgba[(y * width + x) * 4 + 3] > 0))
+            .collect()
+    }
+    fn showing(layout: TrayLayout, refreshing: Option<ProviderId>, fetched_at: u64) -> Frame {
+        let mut state = AppState::disconnected(Settings::default());
+        state.settings.layout = layout;
+        state.refreshing = refreshing;
+        state.providers = [(ProviderId::Claude, 31.0), (ProviderId::Codex, 21.0)]
+            .map(|(id, used_percent)| ProviderSnapshot {
+                id,
+                label: id.label().into(),
+                // Like Coordinator::start, a refresh marks its snapshot Stale.
+                status: if refreshing == Some(id) {
+                    ProviderStatus::Stale
+                } else {
+                    ProviderStatus::Current
+                },
+                fetched_at: Some(fetched_at),
+                windows: vec![QuotaWindow {
+                    id: "weekly".into(),
+                    label: "Week".into(),
+                    used_percent,
+                    resets_at: None,
+                    duration_mins: 10080,
+                    primary: true,
+                }],
+            })
+            .into();
+        render(&state, NOW, false).unwrap()
+    }
+    #[test]
+    fn indicator_leaves_at_most_two_points_around_its_content() {
+        for layout in [TrayLayout::Inline, TrayLayout::Stacked, TrayLayout::Rings] {
+            let inked = inked(&showing(layout, None, NOW));
+            let left = inked.iter().position(|&ink| ink).unwrap();
+            let right = inked.iter().rev().position(|&ink| ink).unwrap();
+            assert!(
+                left <= 4 && right <= 4,
+                "{layout:?}: {left} px left, {right} px right"
+            );
+        }
+    }
+    #[test]
+    fn refresh_dims_values_without_resizing_while_stale_values_keep_tilde() {
+        for layout in [TrayLayout::Inline, TrayLayout::Stacked] {
+            let current = showing(layout, None, NOW);
+            let refreshing = showing(layout, Some(ProviderId::Claude), NOW);
+            assert_eq!(refreshing.width, current.width, "{layout:?}");
+            assert!(refreshing.rgba != current.rgba, "{layout:?}");
+            let old = NOW - STALE_AFTER_MS - 1;
+            let stale = showing(layout, None, old);
+            assert!(stale.width > current.width, "{layout:?}");
+            let stale_refreshing = showing(layout, Some(ProviderId::Claude), old);
+            assert_eq!(stale_refreshing.width, stale.width, "{layout:?}");
+        }
+    }
+    #[test]
+    fn readings_change_whenever_the_frame_does() {
+        let mut stale = AppState::disconnected(Settings::default());
+        stale.providers = vec![ProviderSnapshot {
+            id: ProviderId::Claude,
+            label: "Claude".into(),
+            status: ProviderStatus::Current,
+            fetched_at: Some(NOW - STALE_AFTER_MS - 1),
+            windows: vec![QuotaWindow {
+                id: "weekly".into(),
+                label: "Week".into(),
+                used_percent: 31.0,
+                resets_at: None,
+                duration_mins: 10080,
+                primary: true,
+            }],
+        }];
+        let mut refreshing = stale.clone();
+        refreshing.providers[0].fetched_at = Some(NOW);
+        refreshing.providers[0].status = ProviderStatus::Stale;
+        refreshing.refreshing = Some(ProviderId::Claude);
+        assert!(
+            render(&stale, NOW, false).unwrap().rgba
+                != render(&refreshing, NOW, false).unwrap().rgba
+        );
+        assert_ne!(readings(&stale, NOW), readings(&refreshing, NOW));
+    }
+    #[test]
+    fn refresh_keeps_the_value_and_tilde_shown_before_it() {
+        let mut current = AppState::disconnected(Settings::default());
+        let window = |used_percent, resets_at| QuotaWindow {
+            id: format!("{used_percent}"),
+            label: "Window".into(),
+            used_percent,
+            resets_at,
+            duration_mins: 300,
+            primary: true,
+        };
+        current.providers = vec![ProviderSnapshot {
+            id: ProviderId::Claude,
+            label: "Claude".into(),
+            status: ProviderStatus::Current,
+            fetched_at: Some(NOW),
+            // An elapsed window must not reappear once the refresh starts.
+            windows: vec![window(99.0, Some(NOW - 1)), window(18.0, None)],
+        }];
+        let mut refreshing = current.clone();
+        refreshing.providers[0].status = ProviderStatus::Stale;
+        refreshing.refreshing = Some(ProviderId::Claude);
+        let (before, after) = (readings(&current, NOW), readings(&refreshing, NOW));
+        assert_eq!((after[0].0, after[0].1), (before[0].0, before[0].1));
+    }
     #[test]
     fn stacked_columns_sit_close_together() {
         let mut state = AppState::disconnected(Settings::default());
         state.settings.layout = TrayLayout::Stacked;
         let frame = render(&state, 0, false).unwrap();
-        let (width, height) = (frame.width as usize, frame.height as usize);
-        let inked: Vec<bool> = (0..width)
-            .map(|x| (0..height).any(|y| frame.rgba[(y * width + x) * 4 + 3] > 0))
-            .collect();
+        let inked = inked(&frame);
         let first = inked.iter().position(|&ink| ink).unwrap();
         let last = inked.iter().rposition(|&ink| ink).unwrap();
         let widest_gap = inked[first..=last]

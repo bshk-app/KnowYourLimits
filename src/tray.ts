@@ -49,9 +49,15 @@ export function renderTray(
   container.replaceChildren();
   for (const id of state.settings.barProviders) {
     const preferences = state.settings.preferences[id];
-    const provider = state.providers.find((p) => p.id === id);
+    const refreshing = state.refreshing === id;
+    const snapshot = state.providers.find((p) => p.id === id);
+    // Like the native indicator: a refresh marks its snapshot stale before any new
+    // reading exists, so judge it as current and only dim it, without resizing.
+    const provider =
+      snapshot && refreshing ? { ...snapshot, status: 'current' as const } : snapshot;
     const remaining = provider ? displayRemainingPercent(provider) : null;
-    const historical = state.refreshing === id || !provider || remainingPercent(provider) === null;
+    const stale = !provider || remainingPercent(provider) === null;
+    const historical = stale || refreshing;
     const column = document.createElement('span');
     column.className = `tray-provider size-${preferences.size}`;
     column.style.color = preferences.color === 'system' ? 'var(--text)' : preferences.color;
@@ -68,8 +74,7 @@ export function renderTray(
     }
     const value = document.createElement('span');
     value.className = 'tray-value';
-    value.textContent =
-      remaining === null ? '—' : `${historical ? '~' : ''}${Math.round(remaining)}%`;
+    value.textContent = remaining === null ? '—' : `${stale ? '~' : ''}${Math.round(remaining)}%`;
     if (layout === 'rings') {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', '0 0 22 22');

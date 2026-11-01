@@ -90,26 +90,15 @@ fn update_tray(app: &AppHandle) -> Result<(), String> {
         {
             let dark = app.get_webview_window("main").and_then(|w| w.theme().ok())
                 == Some(tauri::Theme::Dark);
-            let values: Vec<_> = state
-                .settings
-                .bar_providers
-                .iter()
-                .map(|id| {
-                    state.providers.iter().find(|p| p.id == *id).map(|p| {
-                        (
-                            p.display_remaining(now_ms()),
-                            state.refreshing == Some(*id) || p.remaining(now_ms()).is_none(),
-                        )
-                    })
-                })
-                .collect();
+            let now = now_ms();
+            let values = tray_render::readings(&state, now);
             let key = format!(
                 "{}|{values:?}|{dark}",
                 serde_json::to_string(&state.settings).map_err(|_| "Настройки недоступны")?
             );
             let runtime = app.state::<RuntimeState>();
             if runtime.rendering.lock().expect("tray rendering").as_ref() != Some(&key) {
-                let frame = tray_render::render(&state, now_ms(), dark)?;
+                let frame = tray_render::render(&state, now, dark)?;
                 tray.set_title(None::<&str>).map_err(|e| e.to_string())?;
                 tray.set_icon_with_as_template(
                     Some(Image::new_owned(frame.rgba, frame.width, frame.height)),

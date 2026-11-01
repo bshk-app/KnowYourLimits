@@ -993,7 +993,6 @@ fieldset {
   opacity: 0.65;
 }
 .tray-value {
-  min-width: 3.7ch;
   font-size: calc(12px * var(--indicator-scale));
   font-weight: 500;
   line-height: 16px;
